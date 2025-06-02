@@ -3,19 +3,8 @@
 	import PictureCanvas from '$lib/components/PictureCanvas.svelte';
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 	import DescriptionBar from '$lib/components/DescriptionBar.svelte';
-	import type { Color } from '$lib/types';
-
-	const svg = `
-<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
-  <rect x="10" y="10" width="80" height="80" fill="#ffffff" stroke="#000" data-color-id="1"/>
-  <circle cx="150" cy="50" r="40" fill="#ffffff" stroke="#000" data-color-id="2"/>
-</svg>`;
-
-	let colors: Color[] = [
-		{ id: 1, hex: '#FF0000' },
-		{ id: 2, hex: '#00FF00' },
-		{ id: 3, hex: '#0000FF' }
-	];
+	import svg from '../lib/assets/processed/final.svg?raw';
+	import colors from '$lib/assets/processed/colors.json';
 
 	let selectedColorId: number | null = null;
 
