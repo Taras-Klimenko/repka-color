@@ -2,6 +2,48 @@ import sharp from 'sharp';
 import { trace } from 'potrace';
 import fs from 'fs/promises';
 import path from 'path';
+import npyjs from 'npyjs';
+
+export async function loadLabelMap(npyPath: string): Promise<number[][]> {
+	const npy = new npyjs();
+
+	// Read the .npy file as a buffer
+	const buffer = await fs.readFile(npyPath);
+
+	// Convert Node.js Buffer to ArrayBuffer
+	const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+
+	// Parse with npyjs
+	const data = npy.parse(arrayBuffer);
+
+	const isTypedArray =
+		data.data instanceof Int32Array ||
+		data.data instanceof Uint32Array ||
+		data.data instanceof Uint16Array ||
+		data.data instanceof Uint8Array;
+
+	const isBigIntArray = data.data instanceof BigInt64Array;
+
+	if (!isTypedArray && !isBigIntArray) {
+		throw new Error(`Unsupported array type: ${data.data.constructor.name}`);
+	}
+
+	const { shape } = data;
+	const [height, width] = shape;
+	const labelMap: number[][] = [];
+
+	for (let y = 0; y < height; y++) {
+		const row: number[] = [];
+		for (let x = 0; x < width; x++) {
+			const index = y * width + x;
+			const value = data.data[index];
+			row.push(isBigIntArray ? Number(value) : value);
+		}
+		labelMap.push(row);
+	}
+
+	return labelMap;
+}
 
 export async function extractOutlinesSVG(inputPath: string, outputPath: string): Promise<void> {
 	const outlinesBuffer = await sharp(inputPath)

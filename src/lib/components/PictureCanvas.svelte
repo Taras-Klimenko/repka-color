@@ -21,6 +21,7 @@
 		// Set initial fill (gray or current fill) to ensure transition works
 		const currentFill = getComputedStyle(target).fill;
 		target.style.fill = currentFill;
+		target.style.stroke = 'none';
 
 		// Ensure highlight is removed to stop pulsing
 		target.classList.remove('highlight');
@@ -53,7 +54,8 @@
 		paths.forEach((pathEl) => {
 			const colorId = pathEl.getAttribute('data-color-id');
 			if (!colorId) return;
-
+			pathEl.style.stroke = 'grey';
+			pathEl.style.strokeWidth = '0.2';
 			// Use getBBox to get bounding box
 			const bbox = (pathEl as SVGGraphicsElement).getBBox();
 

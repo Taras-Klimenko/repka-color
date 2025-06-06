@@ -10,12 +10,13 @@ import {
 	computeRegionColor,
 	countWhitePixels,
 	generateMask,
-	extractOutlinesSVG
+	extractOutlinesSVG,
+	loadLabelMap
 } from './utils';
 
 const MIN_REGION_PIXELS = 100;
 
-const inputPath = path.resolve('src/lib/assets/original/corgi-cat-test-again.jpg');
+const inputPath = path.resolve('src/lib/assets/original/spacemarine.jpg');
 const grayPath = path.resolve('src/lib/assets/processed/grayscale.png');
 const thresholdPath = path.resolve('src/lib/assets/processed/threshold.png');
 const maskOutputDir = path.resolve('src/lib/assets/processed/region-masks');
@@ -30,7 +31,7 @@ async function main() {
 
 	const binaryImage = toBinaryMatrix(data, info.width, info.height);
 
-	const labelMap = labelRegions(binaryImage);
+	const labelMap = await loadLabelMap(path.resolve('output/labels.npy'));
 	const height = labelMap.length;
 	const width = labelMap[0].length;
 
@@ -46,9 +47,9 @@ async function main() {
 
 	for (let regionId = 1; regionId <= maxLabel; regionId++) {
 		const mask = generateMask(labelMap, regionId);
-		const whitePixelCount = countWhitePixels(mask);
+		// const whitePixelCount = countWhitePixels(mask);
 
-		if (whitePixelCount < MIN_REGION_PIXELS) continue;
+		// if (whitePixelCount < MIN_REGION_PIXELS) continue;
 
 		// Save the mask image
 		const maskPath = path.join(maskOutputDir, `region-${regionId}.png`);

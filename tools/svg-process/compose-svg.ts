@@ -66,8 +66,11 @@ async function composeFinalSVG() {
 			name: 'path',
 			attributes: {
 				...child.attributes,
-				fill: 'black',
-				'fill-rule': 'evenodd'
+				fill: 'none',
+				stroke: 'grey',
+				'stroke-width': '0.5',
+				'fill-rule': 'evenodd',
+				'pointer-events': 'none'
 			}
 		});
 	}
