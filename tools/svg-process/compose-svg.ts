@@ -6,6 +6,7 @@ import type { Color } from '../../src/lib/types';
 
 const svgsDir = path.resolve('src/lib/assets/processed/svgs');
 const regionColorsPath = path.resolve('src/lib/assets/processed/region-colors.json');
+const visualCentersPath = path.resolve('output/visual_centers.json');
 const outlinesPath = path.resolve('src/lib/assets/processed/outlines.svg');
 const outputPath = path.resolve('src/lib/assets/processed/final.svg');
 
@@ -15,7 +16,7 @@ async function composeFinalSVG() {
 	files.sort((a, b) => {
 		const aId = parseInt(a.match(/region-(\d+)\.svg/)?.[1] ?? '0', 10);
 		const bId = parseInt(b.match(/region-(\d+)\.svg/)?.[1] ?? '0', 10);
-		return bId - aId;
+		return aId - bId;
 	});
 
 	const allPaths: any[] = [];
@@ -48,7 +49,7 @@ async function composeFinalSVG() {
 			name: 'path',
 			attributes: {
 				d: pathElement.attributes.d,
-				fill: 'transparent',
+				fill: 'ivory',
 				'fill-rule': fillRule,
 				'data-region': regionId,
 				'data-color-id': colorId
@@ -75,14 +76,38 @@ async function composeFinalSVG() {
 		});
 	}
 
+	const visualCenters: Record<string, [number, number]> = JSON.parse(
+		await fs.readFile(visualCentersPath, 'utf-8')
+	);
+
 	// Build the final SVG
 	const root = create({ version: '1.0' }).ele('svg', {
 		xmlns: 'http://www.w3.org/2000/svg',
 		viewBox: '0 0 1024 1024'
 	});
 
+	const viewportGroup = root.ele('g', { id: 'viewport' });
+
 	for (const pathObj of allPaths) {
-		root.ele(pathObj.name, pathObj.attributes);
+		viewportGroup.ele(pathObj.name, pathObj.attributes);
+	}
+
+	for (const [regionId, [x, y]] of Object.entries(visualCenters)) {
+		const colorId = colorIdMap.find((c) => c.id === parseInt(regionId))?.id;
+		if (!colorId) continue;
+
+		viewportGroup
+			.ele('text', {
+				x: x.toFixed(2),
+				y: y.toFixed(2),
+				'text-anchor': 'middle',
+				'dominant-baseline': 'middle',
+				'font-size': '10',
+				fill: 'black',
+				'pointer-events': 'none',
+				class: 'region-label'
+			})
+			.txt(colorId.toString());
 	}
 
 	const svg = root.end({ prettyPrint: true });

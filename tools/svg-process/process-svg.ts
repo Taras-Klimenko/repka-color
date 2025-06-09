@@ -16,7 +16,7 @@ import {
 
 const MIN_REGION_PIXELS = 100;
 
-const inputPath = path.resolve('src/lib/assets/original/spacemarine.jpg');
+const inputPath = path.resolve('src/lib/assets/original/jjk.jpg');
 const grayPath = path.resolve('src/lib/assets/processed/grayscale.png');
 const thresholdPath = path.resolve('src/lib/assets/processed/threshold.png');
 const maskOutputDir = path.resolve('src/lib/assets/processed/region-masks');

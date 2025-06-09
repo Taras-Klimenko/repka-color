@@ -28,4 +28,4 @@ function runSLIC(imagePath: string): Promise<void> {
 	});
 }
 
-runSLIC(path.resolve('src/lib/assets/original/spacemarine.jpg')).catch(console.error);
+runSLIC(path.resolve('src/lib/assets/original/jjk.jpg')).catch(console.error);

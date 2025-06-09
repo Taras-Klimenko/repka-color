@@ -4,7 +4,8 @@ from skimage import io, segmentation, color, graph
 from skimage.color import rgb2lab
 from skimage.segmentation import find_boundaries, relabel_sequential
 from collections import defaultdict
-
+from scipy.ndimage import distance_transform_edt, center_of_mass
+import json
 
 # --- Segmentation Settings ---
 SEGMENTS = 12000          # Higher = more superpixels
@@ -66,6 +67,38 @@ def merge_small_regions(labels: np.ndarray, min_size=MIN_REGION_SIZE) -> np.ndar
     return labels
 
 
+# Compute visual centers of each region and save to JSON
+def compute_visual_centers(label_map: np.ndarray, output_path: str):
+    height, width = label_map.shape
+    centers = {}
+
+    for label in np.unique(label_map):
+        if label == 0:
+            continue
+
+        mask = (label_map == label).astype(np.uint8)
+        if np.count_nonzero(mask) == 0:
+            continue
+
+        distance = distance_transform_edt(mask)
+        y, x = np.unravel_index(np.argmax(distance), distance.shape)
+
+        # Check how close to the edge the computed center is
+        margin = 5  # pixels
+        if (
+            x <= margin or x >= width - margin or
+            y <= margin or y >= height - margin
+        ):
+            # Too close to edge, fallback to geometric center
+            weighted_distance = distance * mask
+            cy, cx = center_of_mass(weighted_distance)
+            x, y = int(cx), int(cy)
+
+        centers[int(label)] = [int(x), int(y)]
+
+    with open(output_path, 'w') as f:
+        json.dump(centers, f, indent=2)
+
 # Main segmentation pipeline to break image into segments and save output preview and labels map
 def segment_image(
     input_path: str,
@@ -98,8 +131,9 @@ def segment_image(
     os.makedirs(output_dir, exist_ok=True)
     np.save(f'{output_dir}/labels.npy', labels)
     io.imsave(f'{output_dir}/avg_colored.png', (avg_color * 255).astype(np.uint8))
+    compute_visual_centers(labels, f'{output_dir}/visual_centers.json')
 
-    print(f"Done. Output saved to: {output_dir}")
+    print(f'Done. Output saved to: {output_dir}')
 
 
 

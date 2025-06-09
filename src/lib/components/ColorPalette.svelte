@@ -25,6 +25,8 @@
 
 	.color-palette {
 		display: grid;
+		height: 75vh;
+		overflow-y: scroll;
 		grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
 		gap: 0.5rem;
 	}

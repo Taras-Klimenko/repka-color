@@ -313,3 +313,28 @@ export async function computeRegionColor(
 		b: Math.round(bSum / count)
 	};
 }
+
+export function computeCentroids(labelMap: number[][]): Record<string, { x: number; y: number }> {
+	const centroids: Record<string, { x: number; y: number }> = {};
+	const sumsX: Record<string, number> = {};
+	const sumsY: Record<string, number> = {};
+	const counts: Record<string, number> = {};
+
+	for (let y = 0; y < labelMap.length; y++) {
+		for (let x = 0; x < labelMap[0].length; x++) {
+			const id = labelMap[y][x].toString();
+			sumsX[id] = (sumsX[id] ?? 0) + x;
+			sumsY[id] = (sumsY[id] ?? 0) + y;
+			counts[id] = (counts[id] ?? 0) + 1;
+		}
+	}
+
+	for (const id in counts) {
+		centroids[id] = {
+			x: sumsX[id] / counts[id],
+			y: sumsY[id] / counts[id]
+		};
+	}
+
+	return centroids;
+}
