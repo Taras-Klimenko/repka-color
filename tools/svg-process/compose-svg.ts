@@ -49,32 +49,35 @@ async function composeFinalSVG() {
 			name: 'path',
 			attributes: {
 				d: pathElement.attributes.d,
-				fill: 'ivory',
+				fill: 'whitesmoke',
 				'fill-rule': fillRule,
 				'data-region': regionId,
-				'data-color-id': colorId
+				'data-color-id': colorId,
+				stroke: 'grey',
+				'stroke-width': '0.3',
+				class: 'color-region'
 			}
 		});
 		colorIdMap.push({ id: colorId, hex: hexColor });
 	}
 
 	const outlinesContent = await fs.readFile(outlinesPath, 'utf-8');
-	const parsedOutline = await parse(outlinesContent);
+	// const parsedOutline = await parse(outlinesContent);
 
-	for (const child of parsedOutline.children) {
-		if (child.name !== 'path') continue;
-		allPaths.push({
-			name: 'path',
-			attributes: {
-				...child.attributes,
-				fill: 'none',
-				stroke: 'grey',
-				'stroke-width': '0.5',
-				'fill-rule': 'evenodd',
-				'pointer-events': 'none'
-			}
-		});
-	}
+	// for (const child of parsedOutline.children) {
+	// 	if (child.name !== 'path') continue;
+	// 	allPaths.push({
+	// 		name: 'path',
+	// 		attributes: {
+	// 			...child.attributes,
+	// 			fill: 'none',
+	// 			stroke: 'grey',
+	// 			'stroke-width': '0.5',
+	// 			'fill-rule': 'evenodd',
+	// 			'pointer-events': 'none'
+	// 		}
+	// 	});
+	// }
 
 	const visualCenters: Record<string, [number, number]> = JSON.parse(
 		await fs.readFile(visualCentersPath, 'utf-8')

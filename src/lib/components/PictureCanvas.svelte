@@ -1,50 +1,85 @@
 <script lang="ts">
-	import { onMount, afterUpdate, tick } from 'svelte';
+	import confetti from 'canvas-confetti';
+	import { onMount } from 'svelte';
 	import type { Color } from '$lib/types';
 
-	export let svg: string = '';
-	export let originalImageUrl: string = '';
-	export let selectedColor: Color | null = null;
-	export let onCorrectColorClick: () => void = () => {};
+	const {
+		svg,
+		originalImageUrl,
+		selectedColor,
+		onCorrectColorClick = () => {}
+	} = $props<{
+		svg: string;
+		originalImageUrl: string;
+		selectedColor: Color | null;
+		onCorrectColorClick: () => void;
+	}>();
 
+	// === creating DOM refs ===
 	let allPaths: NodeListOf<SVGPathElement>;
-
-	// === setting up zoom and pan state ===
+	let regionLabels: NodeListOf<SVGTextElement>;
 	let svgEl: SVGSVGElement;
 	let viewGroup: SVGGElement;
 
-	let scale = 1;
-	let translate = { x: 0, y: 0 };
-	let isPanning = false;
-	let last = { x: 0, y: 0 };
+	// Progress tracking
+	let hasFinished = $state(false);
+	let totalRegions = $state(0);
+	let filledRegions = $state(0);
+	let progressPercentage = $derived(
+		totalRegions === 0 ? 0 : Math.floor((filledRegions / totalRegions) * 100)
+	);
+
+	// === setting up zoom and pan state ===
+
+	let scale = $state(1);
+	let translate = $state({ x: 0, y: 0 });
+	let isPanning = $state(false);
+	let last = $state({ x: 0, y: 0 });
 
 	function updateTransform() {
-		if (viewGroup) {
-			viewGroup.setAttribute(
-				'transform',
-				`translate(${translate.x},${translate.y}) scale(${scale})`
-			);
-		}
+		requestAnimationFrame(() => {
+			if (viewGroup) {
+				viewGroup.setAttribute(
+					'transform',
+					`translate(${translate.x},${translate.y}) scale(${scale})`
+				);
+			}
+		});
 	}
 
 	// === mouse pan events ===
-	function handleMouseDown(event: MouseEvent) {
+	function handlePointerDown(event: PointerEvent) {
 		isPanning = true;
 		last = { x: event.clientX, y: event.clientY };
+		svgEl.setPointerCapture(event.pointerId);
 	}
 
-	function handleMouseMove(event: MouseEvent) {
-		if (!isPanning) return;
-		const dx = event.clientX - last.x;
-		const dy = event.clientY - last.y;
-		last = { x: event.clientX, y: event.clientY };
-		translate.x += dx;
-		translate.y += dy;
-		updateTransform();
+	let animationFrame: number | null = null;
+
+	function handlePointerMove(event: PointerEvent) {
+		if (!isPanning || animationFrame) return;
+
+		animationFrame = requestAnimationFrame(() => {
+			const dx = event.clientX - last.x;
+			const dy = event.clientY - last.y;
+			last = { x: event.clientX, y: event.clientY };
+			translate.x += dx;
+			translate.y += dy;
+			updateTransform();
+			animationFrame = null;
+		});
 	}
 
-	function handleMouseUp() {
+	function handlePointerUp(event: PointerEvent) {
 		isPanning = false;
+		svgEl.releasePointerCapture(event.pointerId);
+
+		const dx = Math.abs(event.clientX - last.x);
+		const dy = Math.abs(event.clientY - last.y);
+		if (dx < 5 && dy < 5) {
+			const target = document.elementFromPoint(event.clientX, event.clientY) as SVGElement;
+			handlePointerClick(target);
+		}
 	}
 
 	function handleWheel(event: WheelEvent) {
@@ -65,71 +100,86 @@
 		updateTransform();
 	}
 
-	function handleClick(event: MouseEvent) {
-		const target = event.target as SVGElement;
+	function handlePointerClick(target: SVGElement) {
 		if (!target.dataset.colorId || !(target instanceof SVGElement)) return;
 		if (!selectedColor || target.dataset.colorId !== String(selectedColor.id)) return;
 
-		target.style.transition = 'opacity 0.5s ease';
-		target.style.opacity = '0';
+		target.classList.add('fade-out');
 		target.classList.remove('highlight');
 
-		const textElements = svgEl.querySelectorAll('text.region-label');
-		textElements.forEach((textEl) => {
+		regionLabels.forEach((textEl) => {
 			if (textEl.textContent === target.dataset.colorId) {
 				textEl.remove();
 			}
 		});
+		filledRegions += 1;
 		onCorrectColorClick();
 	}
-
 	onMount(() => {
 		allPaths = svgEl.querySelectorAll('path[data-color-id]');
-		allPaths.forEach((pathEl) => {
-			const colorId = pathEl.getAttribute('data-color-id');
-			if (!colorId) return;
-			pathEl.style.stroke = 'grey';
-			pathEl.style.strokeWidth = '0.2';
-			pathEl.classList.add('color-region');
-		});
+		regionLabels = svgEl.querySelectorAll('text.region-label');
+		totalRegions = allPaths.length;
 	});
 
-	afterUpdate(() => {
+	$effect(() => {
 		allPaths.forEach((el) => {
 			const elColorId = el.getAttribute('data-color-id');
 			if (!elColorId) return;
-			if (selectedColor && elColorId === String(selectedColor.id)) {
+
+			const isHighlighted = el.classList.contains('highlight');
+			const shouldHighlight = selectedColor && elColorId === String(selectedColor.id);
+
+			if (shouldHighlight && !isHighlighted) {
 				el.classList.add('highlight');
-			} else {
+			} else if (!shouldHighlight && isHighlighted) {
 				el.classList.remove('highlight');
 			}
 		});
+
+		if (progressPercentage === 100 && !hasFinished) {
+			hasFinished = true;
+			confetti({
+				particleCount: 150,
+				spread: 70,
+				origin: { y: 0.6 }
+			});
+		}
 	});
 </script>
 
-<svg
-	bind:this={svgEl}
-	on:click={handleClick}
-	on:mousedown={handleMouseDown}
-	on:mousemove={handleMouseMove}
-	on:mouseup={handleMouseUp}
-	on:mouseleave={handleMouseUp}
-	on:wheel={handleWheel}
-	viewBox="0 0 1024 1024"
-	class="svg-container"
->
-	<g bind:this={viewGroup}>
-		<image
-			href={originalImageUrl}
-			x="0"
-			y="0"
-			width="1024"
-			height="1024"
-			preserveAspectRatio="xMidYMid meet"
-		/>
-		{@html svg}
-	</g>
-</svg>
+<!-- TODO: resolve accessibility issue -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="component-container">
+	<svg
+		bind:this={svgEl}
+		onpointerdown={handlePointerDown}
+		onpointermove={handlePointerMove}
+		onpointerup={handlePointerUp}
+		onpointerleave={handlePointerUp}
+		onwheel={handleWheel}
+		viewBox="0 0 1024 1024"
+		class="svg-container"
+	>
+		<g bind:this={viewGroup}>
+			<image
+				href={originalImageUrl}
+				x="0"
+				y="0"
+				width="1024"
+				height="1024"
+				preserveAspectRatio="xMidYMid meet"
+			/>
+			{@html svg}
+		</g>
+	</svg>
+	<div class="progress-bar-wrapper">
+		<div class="progress-bar">
+			<div class="progress-bar-fill" style="width: {progressPercentage}%;"></div>
+		</div>
+		<p class="progress-text">{progressPercentage} %</p>
+	</div>
+</div>
 
 <style>
 	@keyframes fillPulse {
@@ -144,23 +194,69 @@
 		}
 	}
 
+	.component-container {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+	}
+
 	.svg-container {
-		background-color: ivory;
+		background-color: whitesmoke;
 		width: 80%;
 		height: auto;
 		max-height: 80vh;
 		border: 1px solid #ccc;
-		touch-action: none;
 		cursor: grab;
 	}
 
 	:global(.color-region) {
-		will-change: fill;
-		transition: fill 0.5s ease;
 		cursor: pointer;
 	}
 
 	:global(.color-region.highlight) {
 		animation: fillPulse 2.5s infinite;
+	}
+
+	:global(.color-region.fade-out) {
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.5s ease;
+	}
+
+	.svg-container,
+	.svg-container * {
+		user-select: none;
+		-webkit-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		-webkit-user-drag: none;
+	}
+
+	.progress-bar-wrapper {
+		width: 80%;
+		margin: 1rem auto;
+		text-align: center;
+	}
+
+	.progress-bar {
+		width: 100%;
+		height: 20px;
+		background-color: #eee;
+		border-radius: 10px;
+		overflow: hidden;
+		box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+	}
+
+	.progress-bar-fill {
+		height: 100%;
+		background-color: #4caf50;
+		width: 0%;
+		transition: width 0.3s ease;
+	}
+
+	.progress-text {
+		margin-top: 0.5rem;
+		font-size: 0.9rem;
+		color: #333;
 	}
 </style>
