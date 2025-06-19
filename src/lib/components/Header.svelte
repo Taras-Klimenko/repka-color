@@ -1,3 +1,7 @@
+<script>
+	import AudioPlayer from './AudioPlayer.svelte';
+</script>
+
 <div class="header-container">
 	<header class="header">
 		<div class="logo-container"><p class="logo">LOGO</p></div>
@@ -7,5 +11,13 @@
 			</ul>
 		</nav>
 		<div class="profile-container"></div>
+		<AudioPlayer />
 	</header>
 </div>
+
+<style>
+	.header {
+		display: flex;
+		justify-content: space-around;
+	}
+</style>

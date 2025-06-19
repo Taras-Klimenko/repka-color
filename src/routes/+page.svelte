@@ -7,6 +7,7 @@
 	import rawColors from '$lib/assets/processed/colors.json';
 	import type { Color } from '$lib/types';
 	import { tick } from 'svelte';
+	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 
 	let colors: Color[] = [...rawColors];
 	let selectedColorId: number | null = null;
