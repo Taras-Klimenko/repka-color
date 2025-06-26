@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
+	import { isVoiceoverPlaying } from '$lib/stores/audioState';
 	import '$lib/icons';
 
 	let isPlaying = $state(false);
 	let isShuffled = $state(false);
 	let volume = $state(1);
 	let currentTrackIndex = $state(0);
+	let wasPlayingBeforeVoiceover = $state(false);
 	let audio: HTMLAudioElement;
 
 	const playlist = [
@@ -76,6 +78,22 @@
 		volume = v;
 		if (audio) audio.volume = v;
 	}
+
+	$effect(() => {
+		if ($isVoiceoverPlaying) {
+			// Voiceover started: pause music if playing
+			if (!audio.paused) {
+				wasPlayingBeforeVoiceover = true;
+				audio.pause();
+			}
+		} else {
+			// Voiceover ended: resume music if it was playing
+			if (wasPlayingBeforeVoiceover) {
+				audio.play();
+				wasPlayingBeforeVoiceover = false;
+			}
+		}
+	});
 
 	onMount(() => {
 		loadTrack(currentTrackIndex);

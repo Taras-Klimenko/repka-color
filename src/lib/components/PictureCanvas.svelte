@@ -23,6 +23,7 @@
 
 	// Progress tracking
 	let hasFinished = $state(false);
+	let isTimelapsing = $state(false);
 	let totalRegions = $state(0);
 	let filledRegions = $state(0);
 	let progressPercentage = $derived(
@@ -49,6 +50,9 @@
 
 	// === mouse pan events ===
 	function handlePointerDown(event: PointerEvent) {
+		if (isTimelapsing) {
+			return;
+		}
 		isPanning = true;
 		last = { x: event.clientX, y: event.clientY };
 		svgEl.setPointerCapture(event.pointerId);
@@ -142,6 +146,19 @@
 				particleCount: 150,
 				spread: 70,
 				origin: { y: 0.6 }
+			});
+
+			isTimelapsing = true;
+			allPaths.forEach((el) => el.classList.add('timelapse-start'));
+
+			scale = 1;
+			translate = { x: 0, y: 0 };
+			updateTransform();
+
+			allPaths.forEach((el, i) => {
+				setTimeout(() => {
+					el.classList.add('timelapse-reveal');
+				}, i * 100); // 100ms delay between each
 			});
 		}
 	});
@@ -258,5 +275,13 @@
 		margin-top: 0.5rem;
 		font-size: 0.9rem;
 		color: #333;
+	}
+
+	:global(.color-region.timelapse-start) {
+		opacity: 1;
+	}
+
+	:global(.color-region.timelapse-reveal) {
+		opacity: 0;
 	}
 </style>

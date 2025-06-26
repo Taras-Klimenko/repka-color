@@ -8,6 +8,7 @@
 	import type { Color } from '$lib/types';
 	import { tick } from 'svelte';
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
+	import Menu from '$lib/components/Menu.svelte';
 
 	let colors: Color[] = [...rawColors];
 	let selectedColorId: number | null = null;
@@ -50,13 +51,13 @@
 </script>
 
 <div class="app">
-	<Header />
+	<Menu />
 	<main>
 		<PictureCanvas
 			{svg}
 			selectedColor={colors.find((color) => color.id === selectedColorId) || null}
 			onCorrectColorClick={() => removeColor(selectedColorId)}
-			originalImageUrl="/src/lib/assets/original/jjk.jpg"
+			originalImageUrl="/assets/original/jjk.jpg"
 		/>
 		<ColorPalette
 			{colors}
