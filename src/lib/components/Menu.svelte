@@ -1,5 +1,10 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import AudioPlayer from './AudioPlayer.svelte';
+	import { isTouchDevice } from '$lib/utils/isTouchDevice';
+
 	let isMenuOpen = $state(false);
+	let isTouchDeviceLayout = $state(false);
 
 	function toggleMenu() {
 		isMenuOpen = !isMenuOpen;
@@ -8,6 +13,10 @@
 	function hideMenu() {
 		isMenuOpen = false;
 	}
+
+	onMount(() => {
+		isTouchDeviceLayout = isTouchDevice();
+	});
 </script>
 
 <div class="nav-wrapper">
@@ -29,6 +38,9 @@
 			<li><a href="#top" onclick={hideMenu}>Projects</a></li>
 			<li><a href="#top" onclick={hideMenu}>Contact</a></li>
 		</ul>
+		{#if isTouchDeviceLayout}
+			<div class="audio-player-container-mobile"><AudioPlayer /></div>
+		{/if}
 	</nav>
 	<div
 		class="backdrop"
@@ -38,6 +50,9 @@
 		role="button"
 		tabindex="0"
 	></div>
+	{#if !isTouchDeviceLayout}
+		<div class="audio-player-container"><AudioPlayer /></div>
+	{/if}
 </div>
 
 <style>
@@ -95,6 +110,8 @@
 		z-index: 2;
 		background: rgba(255, 255, 255, 0.15);
 		backdrop-filter: blur(10px);
+		display: flex;
+		flex-direction: column;
 	}
 
 	nav ul {
@@ -140,5 +157,35 @@
 	.backdrop.visible {
 		opacity: 1;
 		pointer-events: auto;
+	}
+
+	.audio-player-container {
+		position: fixed;
+		right: 15px;
+		top: 15px;
+		z-index: 5;
+	}
+
+	.audio-player-container-mobile {
+		position: static;
+	}
+
+	@media (max-width: 1024px) {
+		nav {
+			width: 100vw;
+		}
+		.backdrop {
+			display: none;
+		}
+	}
+
+	@media (max-width: 1023px) and (orientation: landscape) {
+		nav ul {
+			font-size: 1.5rem;
+		}
+
+		.audio-player-container-mobile {
+			margin-bottom: 2vh;
+		}
 	}
 </style>

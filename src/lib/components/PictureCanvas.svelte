@@ -20,6 +20,8 @@
 	let regionLabels: NodeListOf<SVGTextElement>;
 	let svgEl: SVGSVGElement;
 	let viewGroup: SVGGElement;
+	let colorIdToPathMap: Map<string, SVGPathElement>;
+	let colorIdToLabelMap: Map<string, SVGTextElement>;
 
 	// Progress tracking
 	let hasFinished = $state(false);
@@ -29,6 +31,7 @@
 	let progressPercentage = $derived(
 		totalRegions === 0 ? 0 : Math.floor((filledRegions / totalRegions) * 100)
 	);
+	let previousHighlightedElement: SVGPathElement | null = null;
 
 	// === setting up zoom and pan state ===
 
@@ -111,11 +114,11 @@
 		target.classList.add('fade-out');
 		target.classList.remove('highlight');
 
-		regionLabels.forEach((textEl) => {
-			if (textEl.textContent === target.dataset.colorId) {
-				textEl.remove();
-			}
-		});
+		const label = colorIdToLabelMap.get(target.dataset.colorId);
+		if (label) {
+			label.remove();
+			colorIdToLabelMap.delete(target.dataset.colorId);
+		}
 		filledRegions += 1;
 		onCorrectColorClick();
 	}
@@ -123,22 +126,38 @@
 		allPaths = svgEl.querySelectorAll('path[data-color-id]');
 		regionLabels = svgEl.querySelectorAll('text.region-label');
 		totalRegions = allPaths.length;
+
+		colorIdToPathMap = new Map();
+		allPaths.forEach((el) => {
+			if (el.dataset.colorId) {
+				colorIdToPathMap.set(el.dataset.colorId, el);
+			}
+		});
+
+		colorIdToLabelMap = new Map();
+		regionLabels.forEach((el) => {
+			if (el.textContent) {
+				colorIdToLabelMap.set(el.textContent, el);
+			}
+		});
 	});
 
 	$effect(() => {
-		allPaths.forEach((el) => {
-			const elColorId = el.getAttribute('data-color-id');
-			if (!elColorId) return;
+		const newId = selectedColor ? String(selectedColor.id) : null;
+		let newHighlightedElement: SVGPathElement | null = null;
 
-			const isHighlighted = el.classList.contains('highlight');
-			const shouldHighlight = selectedColor && elColorId === String(selectedColor.id);
+		if (previousHighlightedElement) {
+			previousHighlightedElement.classList.remove('highlight');
+			previousHighlightedElement = null;
+		}
 
-			if (shouldHighlight && !isHighlighted) {
-				el.classList.add('highlight');
-			} else if (!shouldHighlight && isHighlighted) {
-				el.classList.remove('highlight');
+		if (newId) {
+			newHighlightedElement = colorIdToPathMap.get(newId) || null;
+			if (newHighlightedElement) {
+				newHighlightedElement.classList.add('highlight');
+				previousHighlightedElement = newHighlightedElement;
 			}
-		});
+		}
 
 		if (progressPercentage === 100 && !hasFinished) {
 			hasFinished = true;
@@ -190,11 +209,11 @@
 			{@html svg}
 		</g>
 	</svg>
-	<div class="progress-bar-wrapper">
+	<div class="progress-bar-overlay">
 		<div class="progress-bar">
 			<div class="progress-bar-fill" style="width: {progressPercentage}%;"></div>
+			<p class="progress-text">{progressPercentage} %</p>
 		</div>
-		<p class="progress-text">{progressPercentage} %</p>
 	</div>
 </div>
 
@@ -213,17 +232,18 @@
 
 	.component-container {
 		width: 100%;
+		height: 100%;
+		position: relative;
 		display: flex;
 		flex-direction: column;
 	}
 
 	.svg-container {
 		background-color: whitesmoke;
-		width: 80%;
-		height: auto;
-		max-height: 80vh;
-		border: 1px solid #ccc;
+		width: 100%;
+		display: block;
 		cursor: grab;
+		flex: 1;
 	}
 
 	:global(.color-region) {
@@ -249,32 +269,37 @@
 		-webkit-user-drag: none;
 	}
 
-	.progress-bar-wrapper {
-		width: 80%;
-		margin: 1rem auto;
+	.progress-bar-overlay {
+		position: absolute;
+		width: 100%;
+		bottom: 0;
+		left: 50%;
+		transform: translate(-50%);
 		text-align: center;
+		background-color: rgba(255, 255, 255, 0.6);
+		box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 	}
 
 	.progress-bar {
 		width: 100%;
-		height: 20px;
-		background-color: #eee;
-		border-radius: 10px;
+		height: 16px;
 		overflow: hidden;
-		box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
 	}
 
 	.progress-bar-fill {
 		height: 100%;
 		background-color: #4caf50;
-		width: 0%;
 		transition: width 0.3s ease;
 	}
 
 	.progress-text {
-		margin-top: 0.5rem;
 		font-size: 0.9rem;
+		font-weight: 600;
 		color: #333;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
 	}
 
 	:global(.color-region.timelapse-start) {

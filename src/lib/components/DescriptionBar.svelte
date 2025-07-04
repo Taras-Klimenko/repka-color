@@ -11,6 +11,8 @@
 
 	let rafId: number | null = null;
 
+	let wordRefs = $state<Array<HTMLElement | null>>([]);
+
 	function updateWordHighlight() {
 		if (!audioElement || !audioElement.duration) return;
 		const progress = audioElement.currentTime / audioElement.duration;
@@ -55,6 +57,16 @@
 			rafId = null;
 		}
 	});
+
+	$effect(() => {
+		if (currentWordIndex >= 0 && wordRefs[currentWordIndex]) {
+			wordRefs[currentWordIndex]?.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest',
+				inline: 'start'
+			});
+		}
+	});
 </script>
 
 <div class="description-bar-container">
@@ -65,37 +77,51 @@
 			▶️
 		{/if}</button
 	>
-	<p class="description-text">
-		{#each words as word, index}<span class:highlighted={index <= currentWordIndex}
-				>{word + ' '}
-			</span>{/each}
-	</p>
+	<div class="description-text-scroll">
+		<p class="description-text">
+			{#each words as word, index}<span
+					class:highlighted={index <= currentWordIndex}
+					bind:this={wordRefs[index]}
+					>{word + ' '}
+				</span>{/each}
+		</p>
+	</div>
 	<audio src={audioSrc} bind:this={audioElement} preload="auto"></audio>
 </div>
 
 <style>
 	.description-bar-container {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
+		height: 10vh;
 		background: rgba(255, 255, 255, 0.3);
 		backdrop-filter: blur(6px);
-		padding: 1rem 1.25rem;
+		padding: 5px 1.25rem;
 		border-top: 2px solid #ddd;
 		font-size: 1.2rem;
 		border-radius: 0 0 1rem 1rem;
 		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 	}
 
-	.description-text {
+	.description-text-scroll {
 		flex: 1;
-		margin-left: 1rem;
+		overflow-y: auto;
+		max-height: 100%;
+	}
+
+	.description-text {
 		color: #333;
 		font-family: 'Georgia', serif;
 		letter-spacing: 0.02em;
+		font-weight: 500;
 		line-height: 1.6;
+		font-size: clamp(1.1rem, 2.5vh, 1.7rem);
 	}
 
 	.play-button {
+		flex-shrink: 0;
+		align-self: center;
+		margin-right: 1rem;
 		font-size: 1.4rem;
 		background: none;
 		border: none;

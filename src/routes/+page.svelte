@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Header from '$lib/components/Header.svelte';
 	import PictureCanvas from '$lib/components/PictureCanvas.svelte';
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 	import DescriptionBar from '$lib/components/DescriptionBar.svelte';
@@ -7,13 +6,15 @@
 	import rawColors from '$lib/assets/processed/colors.json';
 	import type { Color } from '$lib/types';
 	import { tick } from 'svelte';
-	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 	import Menu from '$lib/components/Menu.svelte';
+	import '$lib/app.css';
 
 	let colors: Color[] = [...rawColors];
 	let selectedColorId: number | null = null;
 	let isPaletteAnimating = false;
 	let removingColorId: number | null = null;
+
+	let hasDescriptionBar = true;
 
 	function handleSelect(colorId: number) {
 		selectedColorId = colorId;
@@ -53,28 +54,91 @@
 <div class="app">
 	<Menu />
 	<main>
-		<PictureCanvas
-			{svg}
-			selectedColor={colors.find((color) => color.id === selectedColorId) || null}
-			onCorrectColorClick={() => removeColor(selectedColorId)}
-			originalImageUrl="/assets/original/jjk.jpg"
-		/>
-		<ColorPalette
-			{colors}
-			{selectedColorId}
-			onSelect={handleSelect}
-			isAnimating={isPaletteAnimating}
-			{removingColorId}
-		/>
+		<div class="main-page__layout">
+			<div class="main-area__layout">
+				<div class="canvas">
+					<PictureCanvas
+						{svg}
+						selectedColor={colors.find((color) => color.id === selectedColorId) || null}
+						onCorrectColorClick={() => removeColor(selectedColorId)}
+						originalImageUrl="/assets/original/jjk.jpg"
+					/>
+				</div>
+			</div>
+			<div class="floating-palette {hasDescriptionBar ? 'with-description' : 'no-description'}">
+				<ColorPalette
+					{colors}
+					{selectedColorId}
+					onSelect={handleSelect}
+					isAnimating={isPaletteAnimating}
+					{removingColorId}
+				/>
+			</div>
+			<DescriptionBar
+				text="Репка росла и стала большая-пребольшая"
+				audioSrc="/audio/repka-line-1.mp3"
+			/>
+		</div>
 	</main>
-	<DescriptionBar
-		text="Репка росла и стала большая-пребольшая"
-		audioSrc="/audio/repka-line-1.mp3"
-	/>
 </div>
 
 <style>
-	main {
+	.main-page__layout {
 		display: flex;
+		flex-direction: column;
+		height: 100vh;
+		width: 100vw;
+	}
+
+	.main-area__layout {
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: row;
+		min-height: 0;
+	}
+
+	.canvas {
+		flex: 1;
+		min-height: 0;
+	}
+
+	.floating-palette {
+		position: fixed;
+		top: 12vh;
+		right: 0;
+		height: 75vh;
+		width: 80px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 10;
+		padding: 1rem;
+	}
+
+	@media (orientation: portrait) {
+		.floating-palette {
+			left: 0;
+			right: 0;
+			top: auto;
+			width: 100vw;
+			height: auto;
+			padding: 0;
+			background: rgba(255, 255, 255, 0.15);
+			backdrop-filter: blur(8px);
+		}
+
+		.floating-palette.with-description {
+			bottom: calc(10vh + 16px);
+		}
+
+		.floating-palette.no-description {
+			bottom: 16px;
+		}
+	}
+
+	@media (max-height: 600px) and (orientation: landscape) {
+		.floating-palette {
+			top: 8vh;
+		}
 	}
 </style>
