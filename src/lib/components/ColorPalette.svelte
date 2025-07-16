@@ -75,6 +75,15 @@
 	.color-well.selected {
 		border-color: #000;
 	}
+	.color-well.selected::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: 50%;
+		border: 2px solid #fff;
+		pointer-events: none;
+		box-shadow: 0 0 8px #fff;
+	}
 
 	.color-id {
 		color: white;

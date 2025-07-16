@@ -111,7 +111,6 @@
 
 	.description-text {
 		color: #333;
-		font-family: 'Georgia', serif;
 		letter-spacing: 0.02em;
 		font-weight: 500;
 		line-height: 1.6;
