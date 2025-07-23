@@ -1,11 +1,13 @@
 <script lang="ts">
 	import '$lib/app.css';
-	import {crossfade} from 'svelte/transition';
-	import {onMount} from 'svelte';
-	import {AuthApi} from '$lib/entities/authApi';
-	import {authStore } from '$lib/stores/userState';
-	import {goto} from '$app/navigation';
+	import '$lib/icons';
+	import { crossfade } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import { AuthApi } from '$lib/entities/authApi';
+	import { authStore } from '$lib/stores/userState';
+	import { goto } from '$app/navigation';
 	import { AxiosError } from 'axios';
+	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
 
 	// User inputs state
 
@@ -15,88 +17,113 @@
 	let loading = $state(false);
 	let error = $state('');
 
+	// Client-side password validation
+
+	let isValidPasswordLength = $derived(password.length >= 8 && password.length <= 128);
+	let passwordHasUppercase = $derived(/[A-Z]/.test(password));
+	let passwordHasLowercase = $derived(/[a-z]/.test(password));
+	let passwordHasNumber = $derived(/\d/.test(password));
+
+	let isFormValid = $derived(
+		isValidPasswordLength && passwordHasUppercase && passwordHasLowercase && passwordHasNumber
+	);
+
+	let showPassword = $state(false);
+
 	// Slideshow variables & animation
 
 	let currentIndex = $state(0);
 	let interval = 5000;
-	let images = ['/assets/slideshow/slide-1.jpg', '/assets/slideshow/slide-2.jpg', '/assets/slideshow/slide-3.jpg', '/assets/slideshow/slide-4.jpg', '/assets/slideshow/slide-5.jpg'];
+	let images = [
+		'/assets/slideshow/slide-1.jpg',
+		'/assets/slideshow/slide-2.jpg',
+		'/assets/slideshow/slide-3.jpg',
+		'/assets/slideshow/slide-4.jpg',
+		'/assets/slideshow/slide-5.jpg'
+	];
 
 	const [send, recieve] = crossfade({
-		duration: 1000, fallback(node, params) {
-			return {duration: 1000, css: t => `opacity: ${t}`}
+		duration: 1000,
+		fallback(node, params) {
+			return { duration: 1000, css: (t) => `opacity: ${t}` };
 		}
-	})
+	});
 
 	// Toggling between login and signup forms
-	
-    let signUpForm = $state(true)
 
-    const formToggle = () => {
-        signUpForm = !signUpForm;
+	let signUpForm = $state(true);
+
+	const formToggle = () => {
+		signUpForm = !signUpForm;
 		error = '';
-    }
+		email = '';
+		password = '';
+	};
 
 	// Form handlers
 
-	const handleSignup = async(event: Event) => {
+	const handleSignup = async (event: Event) => {
 		event.preventDefault();
 		loading = true;
 		error = '';
 
 		try {
-			const response = await AuthApi.register({email, password, username});
+			const response = await AuthApi.register({ email, password, username });
 			await authStore.handleAuthSuccess(response);
 			goto('/');
 		} catch (err) {
 			if (err instanceof AxiosError) {
-				error = err.response?.data?.message ||'Registration failed. Please try again.'
+				error = err.response?.data?.message || 'Registration failed. Please try again.';
 			}
-		}
-		finally {
+		} finally {
 			loading = false;
 		}
-	}
+	};
 
-	const handleLogin = async(event: Event) => {
+	const handleLogin = async (event: Event) => {
 		event.preventDefault();
 		loading = true;
 		error = '';
 
 		try {
-			const response = await AuthApi.login({email, password});
+			const response = await AuthApi.login({ email, password });
 			await authStore.handleAuthSuccess(response);
-			goto('/')
+			goto('/');
 		} catch (err) {
 			if (err instanceof AxiosError) {
-				error = err.response?.data?.message || 'Login failed. Please check your credentials and try again.'
-			}		
-		}
-		finally {
+				error =
+					err.response?.data?.message ||
+					'Login failed. Please check your credentials and try again.';
+			}
+		} finally {
 			loading = false;
 		}
-	}
-    
+	};
+
 	onMount(() => {
 		const intervalId = setInterval(() => {
 			currentIndex = (currentIndex + 1) % images.length;
 		}, interval);
 
-		return () => clearInterval(intervalId)
-	})
-
+		return () => clearInterval(intervalId);
+	});
 </script>
 
-
-<div class='auth-page'>
+<div class="auth-page">
 	<!-- Slidesow and vignette overlay -->
-	<div class='slideshow'>
+	<div class="slideshow">
 		{#each images as image, index (image)}
-		{#if index === currentIndex}
-		<div class="slide" style="background-image: url({image})" in:recieve={{key: image}} out:send={{key: image}}></div>
-		{/if}
+			{#if index === currentIndex}
+				<div
+					class="slide"
+					style="background-image: url({image})"
+					in:recieve={{ key: image }}
+					out:send={{ key: image }}
+				></div>
+			{/if}
 		{/each}
 	</div>
-	<div class='overlay'></div>
+	<div class="overlay"></div>
 
 	<!-- Main form content -->
 
@@ -109,7 +136,9 @@
 						Banjo tote bag bicycle rights, High Life sartorial cray craft beer whatever street art
 						fap.
 					</p>
-					<button class="user_unregistered-signup" id="signup-button" onclick={formToggle}>Sign up</button>
+					<button class="user_unregistered-signup" id="signup-button" onclick={formToggle}
+						>Sign up</button
+					>
 				</div>
 
 				<div class="user_options-registered" class:bounceLeft={signUpForm}>
@@ -118,20 +147,49 @@
 						Banjo tote bag bicycle rights, High Life sartorial cray craft beer whatever street art
 						fap.
 					</p>
-					<button class="user_registered-login" id="login-button" onclick={formToggle}>Login</button>
+					<button class="user_registered-login" id="login-button" onclick={formToggle}>Login</button
+					>
 				</div>
 			</div>
 
-			{#key signUpForm}<div class="user_options-forms" id="user_options-forms" class:bounceLeft={!signUpForm} class:bounceRight={signUpForm}>
+			<div
+				class="user_options-forms"
+				id="user_options-forms"
+				class:bounceLeft={!signUpForm}
+				class:bounceRight={signUpForm}
+			>
 				<div class="user_forms-login">
 					<h2 class="forms_title">Login</h2>
 					<form class="forms_form" onsubmit={handleLogin}>
 						<fieldset class="forms_fieldset">
 							<div class="forms_field">
-								<input type="email" placeholder="Email" class="forms_field-input" required bind:value={email} />
+								<input
+									type="email"
+									placeholder="Email"
+									class="forms_field-input"
+									required
+									bind:value={email}
+								/>
 							</div>
 							<div class="forms_field">
-								<input type="password" placeholder="Password" class="forms_field-input" required bind:value={password}/>
+								<input
+									type={showPassword ? 'text' : 'password'}
+									placeholder="Password"
+									class="forms_field-input"
+									required
+									bind:value={password}
+								/>
+								<button
+									title={showPassword ? 'Скрыть' : 'Показать'}
+									type="button"
+									class="password-toggle"
+									onclick={() => (showPassword = !showPassword)}
+									>{#key showPassword}<FontAwesomeIcon
+											icon={showPassword ? 'eye-slash' : 'eye'}
+											fixedWidth
+											class="fa-icon"
+										/>{/key}</button
+								>
 							</div>
 						</fieldset>
 						{#if error}
@@ -148,24 +206,87 @@
 					<form class="forms_form" onsubmit={handleSignup}>
 						<fieldset class="forms_fieldset">
 							<div class="forms_field">
-								<input type="text" placeholder="Full Name" class="forms_field-input" required bind:value={username}/>
+								<input
+									type="text"
+									placeholder="Full Name"
+									class="forms_field-input"
+									required
+									bind:value={username}
+								/>
 							</div>
 							<div class="forms_field">
-								<input type="email" placeholder="Email" class="forms_field-input" required bind:value={email}/>
+								<input
+									type="email"
+									placeholder="Email"
+									class="forms_field-input"
+									required
+									bind:value={email}
+								/>
 							</div>
 							<div class="forms_field">
-								<input type="password" placeholder="Password" class="forms_field-input" required bind:value={password}/>
+								<input
+									type={showPassword ? 'text' : 'password'}
+									placeholder="Password"
+									class="forms_field-input"
+									required
+									bind:value={password}
+								/>
+								<button
+									title={showPassword ? 'Скрыть' : 'Показать'}
+									type="button"
+									class="password-toggle"
+									onclick={() => (showPassword = !showPassword)}
+									>{#key showPassword}<FontAwesomeIcon
+											icon={showPassword ? 'eye-slash' : 'eye'}
+											fixedWidth
+											class="fa-icon"
+										/>{/key}</button
+								>
 							</div>
 						</fieldset>
 						{#if error}
 							<div class="error-message">{error}</div>
 						{/if}
 						<div class="forms_buttons">
-							<input type="submit" value="Sign up" class="forms_buttons-action" disabled={loading} />
+							<ul
+								class="password-validation"
+								class:valid={isValidPasswordLength &&
+									passwordHasUppercase &&
+									passwordHasLowercase &&
+									passwordHasNumber}
+							>
+								В пароле есть минимум:
+								<li>
+									<p class="password-validation-message" class:valid={isValidPasswordLength}>
+										8 символов
+									</p>
+								</li>
+								<li>
+									<p class="password-validation-message" class:valid={passwordHasUppercase}>
+										одна заглавная буква
+									</p>
+								</li>
+								<li>
+									<p class="password-validation-message" class:valid={passwordHasLowercase}>
+										одна строчная буква
+									</p>
+								</li>
+								<li>
+									<p class="password-validation-message" class:valid={passwordHasNumber}>
+										одна цифра
+									</p>
+								</li>
+							</ul>
+							<input
+								type="submit"
+								value="Sign up"
+								class="forms_buttons-action"
+								disabled={loading || !isFormValid}
+							/>
 						</div>
 					</form>
 				</div>
-			</div>{/key}
+			</div>
 		</div>
 	</section>
 </div>
@@ -175,9 +296,9 @@
 		box-sizing: border-box;
 	}
 
-    fieldset {
-        border: none;
-    }
+	fieldset {
+		border: none;
+	}
 
 	button {
 		background-color: transparent;
@@ -226,7 +347,7 @@
 
 	.slideshow {
 		position: absolute;
-		top:0;
+		top: 0;
 		left: 0;
 		width: 100%;
 		height: 100vh;
@@ -243,11 +364,17 @@
 
 	.overlay {
 		position: absolute;
-		top:0;
+		top: 0;
 		left: 0;
 		width: 100%;
 		height: 100%;
-		background-image: radial-gradient(circle, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0.3) 70%, rgba(0, 0, 0, 0.7) 95%);
+		background-image: radial-gradient(
+			circle,
+			rgba(0, 0, 0, 0) 0%,
+			rgba(0, 0, 0, 0.1) 40%,
+			rgba(0, 0, 0, 0.3) 70%,
+			rgba(0, 0, 0, 0.7) 95%
+		);
 		z-index: 2;
 	}
 
@@ -258,7 +385,67 @@
 		text-align: center;
 	}
 
- /* Bounce to the left side */
+	.password-validation {
+		color: #e8716d;
+		list-style: none;
+		margin: 5px 0;
+		font-size: 10px;
+		transition: color 0.3s ease;
+	}
+
+	.password-validation li {
+		display: flex;
+		align-items: center;
+		margin: 5px 0;
+	}
+
+	.password-validation-message {
+		margin: 0;
+		padding-left: 10px;
+		position: relative;
+		transition: color 0.3s ease;
+	}
+
+	.password-validation-message.valid {
+		color: #0cb10c;
+	}
+
+	.password-validation.valid {
+		color: #0cb10c;
+	}
+
+	.password-validation-message::before {
+		content: '✖';
+		position: absolute;
+		left: 0;
+		transition: content 0.3s ease;
+	}
+
+	.password-validation-message.valid::before {
+		content: '✔';
+	}
+
+	.password-toggle {
+		position: absolute;
+		right: 6px;
+		top: 50%;
+		transform: translateY(-50%);
+		background-color: transparent;
+		border: none;
+		padding: 8px;
+		color: #ccc;
+		transition: color 0.2s ease-in-out;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.password-toggle:hover {
+		color: #999;
+	}
+
+	/* Bounce to the left side */
 
 	@-webkit-keyframes bounceLeft {
 		0% {
@@ -283,7 +470,7 @@
 		}
 	}
 
-/* Bounce to the left side */
+	/* Bounce to the left side */
 
 	@-webkit-keyframes bounceRight {
 		0% {
@@ -309,25 +496,25 @@
 	}
 
 	@keyframes bounceDownSwitch {
-	0% {
-		transform: translateY(0);
-		opacity: 0.5;
+		0% {
+			transform: translateY(0);
+			opacity: 0.5;
+		}
+		40% {
+			transform: translateY(30px);
+			opacity: 0;
+		}
+		60% {
+			transform: translateY(-30px);
+			opacity: 0;
+		}
+		100% {
+			transform: translateY(0);
+			opacity: 1;
+		}
 	}
-	40% {
-		transform: translateY(30px);
-		opacity: 0;
-	}
-	60% {
-		transform: translateY(-30px);
-		opacity: 0;
-	}
-	100% {
-		transform: translateY(0);
-		opacity: 1;
-	}
-}
 
-/* Show Sign Up form */
+	/* Show Sign Up form */
 
 	@-webkit-keyframes showSignUp {
 		100% {
@@ -344,7 +531,7 @@
 		}
 	}
 
-/* Page background */
+	/* Page background */
 
 	.user {
 		position: relative;
@@ -415,12 +602,17 @@
 	/**
  * * Login and signup forms
  * */
+
+	.forms_field {
+		position: relative;
+	}
+
 	.user_options-forms {
 		position: absolute;
 		padding: 30px 20px;
 		top: 50%;
 		left: 30px;
-		width: calc(50% - 30px);
+		width: 50%;
 		min-height: 420px;
 		background-color: #fff;
 		border-radius: 3px;
@@ -479,7 +671,7 @@
 	.user_options-forms .forms_buttons-action {
 		background-color: #e8716d;
 		border-radius: 3px;
-		padding: 10px 35px;
+		padding: 10px 25px;
 		font-size: 1rem;
 		font-family: 'Montserrat', sans-serif;
 		font-weight: 300;
@@ -508,7 +700,7 @@
 		transform: translate3d(120px, 0, 0);
 	}
 	.user_options-forms .user_forms-signup .forms_buttons {
-		justify-content: flex-end;
+		justify-content: space-between;
 	}
 	.user_options-forms .user_forms-login {
 		transform: translate3d(0, 0, 0);
@@ -516,7 +708,10 @@
 		visibility: visible;
 	}
 
-	
+	.forms_field-input[type='password'],
+	.forms_field-input[type='text'] {
+		padding-right: 40px;
+	}
 
 	/**
  * * Triggers
@@ -538,109 +733,126 @@
 		-webkit-animation: bounceRight 1s forwards;
 		animation: bounceRight 1s forwards;
 	}
+	.user_options-forms.bounceRight .user_forms-login {
+		opacity: 1;
+		visibility: visible;
+		transform: translate3d(0, 0, 0);
+	}
+	.user_options-forms.bounceRight .user_forms-signup {
+		opacity: 0;
+		visibility: hidden;
+		transform: translate3d(120px, 0, 0);
+	}
 
 	/**
  * * Responsive lt 768px
  * */
- @media (max-width: 768px) {
-	.user_options-container {
-		width: 95%;
-		height: 97vh;
-	}
-	
-	.user_options-text {
-		flex-direction: column;
-		height: auto;
-	}
-	
-	.user_options-registered,
-	.user_options-unregistered {
-		width: 100%;
-		padding: 30px 20px;
-		text-align: center;
-	}
-	
-	.user_options-forms {
-		min-height: 260px;
-		position: relative;
-		top: 0;
-		left: 0;
-		width: 100%;
-		/* height: 250px; */
-		transform: none;
-		margin-top: 20px;
-		box-shadow: none;
-	}
-	
-	/* Disable animations on mobile */
-	.user_options-forms.bounceLeft,
-.user_options-forms.bounceRight {
-	animation: bounceDownSwitch 0.3s ease forwards;
-}
-	
-	/* Show both forms stacked */
-	.user_options-forms .user_forms-signup,
-	.user_options-forms .user_forms-login {
-		position: relative;
-		top: 0;
-		left: 0;
-		width: 100%;
-		transform: none;
-		margin-bottom: 30px;
-	}
-	
-	/* Hide one form based on state */
-	.user_options-forms .user_forms-signup {
-		display: none;
-	}
-	.user_options-forms.bounceLeft .user_forms-signup {
-		display: block;
+	@media (max-width: 768px) {
+		.user_options-container {
+			width: 95%;
+			height: 97vh;
+		}
+
+		.user_options-text {
+			flex-direction: column;
+			height: auto;
+		}
+
+		.user_options-registered,
+		.user_options-unregistered {
+			width: 100%;
+			padding: 30px 20px;
+			text-align: center;
+		}
+
+		.user_options-forms {
+			min-height: 260px;
+			position: relative;
+			top: 0;
+			left: 0;
+			width: 100%;
+			/* height: 250px; */
+			transform: none;
+			margin-top: 20px;
+			box-shadow: none;
+		}
+
+		/* Disable animations on mobile */
+		.user_options-forms.bounceLeft,
+		.user_options-forms.bounceRight {
+			animation: bounceDownSwitch 0.3s ease forwards;
+		}
+
+		/* Show both forms stacked */
+		.user_options-forms .user_forms-signup,
+		.user_options-forms .user_forms-login {
+			position: relative;
+			top: 0;
+			left: 0;
+			width: 100%;
+			transform: none;
+			margin-bottom: 30px;
+		}
+
+		/* Hide one form based on state */
+		.user_options-forms .user_forms-signup {
+			display: none;
+		}
+		.user_options-forms.bounceLeft .user_forms-signup {
+			display: block;
+		}
+
+		.user_options-forms .user_forms-login {
+			display: none;
+		}
+		.user_options-forms.bounceRight .user_forms-login {
+			display: block;
+		}
+
+		.user_options-unregistered.bounceLeft {
+			display: none;
+		}
+
+		.user_options-registered.bounceLeft {
+			display: none;
+		}
 	}
 
-	.user_options-forms .user_forms-login {
-		display: none;
-	}
-	.user_options-forms.bounceRight .user_forms-login {
-		display: block;
-	}
+	@media (orientation: landscape) and (max-width: 768px) {
+		.user_options-forms .forms_buttons {
+			margin-top: 10px;
+		}
 
-	.user_options-unregistered.bounceLeft {
-		display: none;
-	}
+		.user_options-container {
+			height: 95vh;
+		}
 
-	.user_options-registered.bounceLeft {
-		display: none;
-	}
-}
+		.user_unregistered-title,
+		.user_registered-title {
+			font-size: 1rem;
+		}
 
-@media (orientation: landscape) and (max-width: 768px) {
+		.user_unregistered-text,
+		.user_registered-text {
+			display: none;
+		}
 
-	.user_options-container {
-		height: 95vh;
-	}
+		.user_options-registered,
+		.user_options-unregistered {
+			padding: 10px 20px;
+		}
+		#signup-button,
+		#login-button {
+			margin-top: 0;
+		}
 
-	.user_unregistered-title, .user_registered-title {
-		font-size: 1rem;
-	}
+		.user_options-forms {
+			padding: 20px 20px 0px;
+			margin-top: 10px;
+		}
 
-	.user_unregistered-text, .user_registered-text {
-		display: none; 
+		.user_options-forms .forms_title {
+			display: none;
+		}
 	}
-
-	.user_options-registered, .user_options-unregistered {
-		padding: 10px 20px;
-	}
-	#signup-button, #login-button {
-		margin-top: 0;
-	}
-
-	.user_options-forms {
-		padding: 20px 20px 0px;
-		margin-top: 10px;
-	}
-
-	.user_options-forms .forms_title {
-		display: none;
-	}
-}
 </style>

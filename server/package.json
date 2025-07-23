@@ -1,0 +1,46 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --watch src --exec ts-node src/index.ts",
+    "start": "tsc && node dist/index.js",
+    "remigrate": "npx prisma migrate reset && npx prisma migrate dev --name init",
+    "seed": "ts-node prisma/seed.ts",
+    "svg:process": "tsx tools/svg-process/process-svg.ts",
+		"svg:vectorize": "tsx tools/svg-process/vectorize.ts",
+		"svg:compose": "tsx tools/svg-process/compose-svg.ts",
+		"svg:slic": "tsx tools/svg-process/preprocessing/process-image.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@prisma/client": "^6.12.0",
+    "@types/cors": "^2.8.19",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "npyjs": "^0.7.0",
+    "potrace": "^2.1.8",
+    "sharp": "^0.34.3",
+    "svgson": "^5.3.1",
+    "xmlbuilder2": "^3.1.1"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.0.10",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.12.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

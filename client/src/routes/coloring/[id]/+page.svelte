@@ -2,7 +2,7 @@
 	import PictureCanvas from '$lib/components/PictureCanvas.svelte';
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 	import DescriptionBar from '$lib/components/DescriptionBar.svelte';
-	import svg from '../lib/assets/processed/final.svg?raw';
+	import svg from '../../../lib/assets/processed/final.svg?raw';
 	import rawColors from '$lib/assets/processed/colors.json';
 	import type { Color } from '$lib/types';
 	import { tick } from 'svelte';
