@@ -21,15 +21,48 @@ model User {
   username  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  pageProgress UserPageProgress[]
 }
 
 model ColoringBook {
   id          Int      @id @default(autoincrement())
   title       String
-  coverImage  String
   description String?
-  pageCount   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  pages ColoringPage[]
+}
+
+model ColoringPage {
+  id          Int      @id @default(autoincrement())
+  title       String
+  orderIndex  Int
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  coloringBookId Int
+  coloringBook   ColoringBook @relation(fields: [coloringBookId], references: [id], onDelete: Cascade)
+
+  userPageProgress UserPageProgress[]
+
+  @@unique([coloringBookId, orderIndex])
+}
+
+model UserPageProgress {
+  id                 Int      @id @default(autoincrement())
+  progressPercentage Float    @default(0)
+  currentColors      Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  coloringPageId Int
+  coloringPage   ColoringPage @relation(fields: [coloringPageId], references: [id], onDelete: Cascade)
 }

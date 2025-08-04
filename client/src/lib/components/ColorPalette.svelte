@@ -82,7 +82,6 @@
 		border-radius: 50%;
 		border: 2px solid #fff;
 		pointer-events: none;
-		box-shadow: 0 0 8px #fff;
 	}
 
 	.color-id {

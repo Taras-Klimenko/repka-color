@@ -2,8 +2,8 @@
 	import PictureCanvas from '$lib/components/PictureCanvas.svelte';
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 	import DescriptionBar from '$lib/components/DescriptionBar.svelte';
-	import svg from '../../../lib/assets/processed/final.svg?raw';
-	import rawColors from '$lib/assets/processed/colors.json';
+	import svg from '../../../../../server/output/final.svg?raw';
+	import rawColors from '../../../../../server/output/colors.json';
 	import type { Color } from '$lib/types';
 	import { tick } from 'svelte';
 	import Menu from '$lib/components/Menu.svelte';
@@ -61,7 +61,7 @@
 						{svg}
 						selectedColor={colors.find((color) => color.id === selectedColorId) || null}
 						onCorrectColorClick={() => removeColor(selectedColorId)}
-						originalImageUrl="/assets/original/jjk.jpg"
+						originalImageUrl="http://localhost:3000/assets/coloring-books/2/pages/1/1.jpg"
 					/>
 				</div>
 			</div>

@@ -2,8 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { trace } from 'potrace';
 
-const masksDir = path.resolve('src/lib/assets/processed/region-masks');
-const svgDir = path.resolve('src/lib/assets/processed/svgs');
+const masksDir = path.resolve('output/processed/region-masks');
+const svgDir = path.resolve('output/processed/svgs');
 
 async function vectorizeMasks() {
 	await fs.mkdir(svgDir, { recursive: true });

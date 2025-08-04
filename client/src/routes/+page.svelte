@@ -32,7 +32,7 @@
 			{#each coloringBooks as book (book.id)}
 				<div class="book-card" onclick={() => handleBookClick(book.id)}>
 					<div class="book-cover">
-						<img src={`http://localhost:3000${book.coverImage}`} alt={book.title} loading="lazy" />
+						<img src={`${import.meta.env.VITE_API_BASE_URL}/assets/coloring-books/${book.id}/cover.jpg`} alt={book.title} loading="lazy" />
 					</div>
 					<div class="book-info">
 						<h3 class="book-title">{book.title}</h3>

@@ -16,11 +16,9 @@ import {
 
 const MIN_REGION_PIXELS = 100;
 
-const inputPath = path.resolve('src/lib/assets/original/jjk.jpg');
-const grayPath = path.resolve('src/lib/assets/processed/grayscale.png');
-const thresholdPath = path.resolve('src/lib/assets/processed/threshold.png');
-const maskOutputDir = path.resolve('src/lib/assets/processed/region-masks');
-const regionColorPath = path.resolve('src/lib/assets/processed/region-colors.json');
+const inputPath = path.resolve('tools/original/1.jpg');
+const maskOutputDir = path.resolve('output/processed/region-masks');
+const regionColorPath = path.resolve('output/processed/region-colors.json');
 
 async function main() {
 	const { data, info } = await sharp(inputPath)
@@ -71,7 +69,7 @@ async function main() {
 	await fs.writeFile(regionColorPath, JSON.stringify(keptRegionColors, null, 2), 'utf-8');
 	console.log(`Saved ${Object.keys(keptRegionColors).length} region colors.`);
 
-	const outlinesSVGPath = path.resolve('src/lib/assets/processed/outlines.svg');
+	const outlinesSVGPath = path.resolve('output/processed/outlines.svg');
 	await extractOutlinesSVG(inputPath, outlinesSVGPath);
 }
 

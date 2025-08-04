@@ -2,13 +2,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import { parse } from 'svgson';
 import { create } from 'xmlbuilder2';
-import type { Color } from '../../src/lib/types';
+import type { Color } from '../../../client/src/lib/types';
 
-const svgsDir = path.resolve('src/lib/assets/processed/svgs');
-const regionColorsPath = path.resolve('src/lib/assets/processed/region-colors.json');
+const svgsDir = path.resolve('output/processed/svgs');
+const regionColorsPath = path.resolve('output/processed/region-colors.json');
 const visualCentersPath = path.resolve('output/visual_centers.json');
-const outlinesPath = path.resolve('src/lib/assets/processed/outlines.svg');
-const outputPath = path.resolve('src/lib/assets/processed/final.svg');
+const outlinesPath = path.resolve('output/processed/outlines.svg');
+const outputPath = path.resolve('output/regions.svg');
 
 async function composeFinalSVG() {
 	const regionColors = JSON.parse(await fs.readFile(regionColorsPath, 'utf-8'));
@@ -118,7 +118,7 @@ async function composeFinalSVG() {
 	await fs.writeFile(outputPath, svg);
 	console.log('✅ Final SVG composed!');
 	await fs.writeFile(
-		path.resolve('src/lib/assets/processed/colors.json'),
+		path.resolve('output/colors.json'),
 		JSON.stringify(colorIdMap, null, 2)
 	);
 }

@@ -22,12 +22,8 @@ router.get(API_PREFIX, (req, res) => {
 		version: '1.0.0',
 		endpoints: {
 			health: '/health',
-			auth: {
-				register: '/auth/register',
-				login: '/auth/login',
-				logout: '/auth/logout',
-				me: '/auth/me'
-			}
+			auth: '/auth',
+			coloringBooks: '/coloring-books'
 		}
 	});
 });
