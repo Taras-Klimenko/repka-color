@@ -57,6 +57,8 @@
 
 <style>
 	.menu-icon {
+		border-radius: 8px;
+		padding: 5px;
 		display: flex;
 		flex-direction: column;
 		justify-content: space-around;
@@ -64,9 +66,10 @@
 		position: fixed;
 		top: 15px;
 		left: 15px;
-		width: 2rem;
-		height: 2rem;
+		width: 2.6rem;
+		height: 2.6rem;
 		z-index: 100;
+		background-color: rgba(255, 255, 255, 0.65);
 	}
 
 	.menu-icon div {

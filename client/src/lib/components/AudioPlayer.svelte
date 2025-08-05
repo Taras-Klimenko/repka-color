@@ -1,109 +1,46 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
-	import { isVoiceoverPlaying } from '$lib/stores/audioState';
+	import { isVoiceoverPlaying, audioState, audioController } from '$lib/stores/audioState';
 	import '$lib/icons';
 
-	let isPlaying = $state(false);
-	let isShuffled = $state(false);
-	let volume = $state(1);
-	let currentTrackIndex = $state(0);
-	let wasPlayingBeforeVoiceover = $state(false);
-	let audio: HTMLAudioElement;
-
-	const playlist = [
-		{
-			name: 'Hope - Heroes of Might and Magic 4 Original Soundtrack',
-			src: '/audio/ambient/Hope.mp3'
-		},
-		{
-			name: 'Blade of Steel - Witcher 3 Original Soundtrack',
-			src: '/audio/ambient/Blade of Steel.mp3'
-		},
-		{
-			name: 'Yennefer of Vengerberg - Witcher 3 Original Soundtrack',
-			src: '/audio/ambient/Yennefer of Vengerberg.mp3'
-		}
-	];
 
 	// === Player control handlers ===
 
-	function loadTrack(index: number) {
-		if (audio) {
-			audio.pause();
-			audio.removeEventListener('ended', handleNextTrack);
-		}
-
-		audio?.pause();
-		const track = playlist[index];
-		audio = new Audio(track.src);
-		audio.volume = volume;
-		audio.loop = false;
-		audio.addEventListener('ended', handleNextTrack);
-		audio.addEventListener('play', () => (isPlaying = true));
-		audio.addEventListener('pause', () => (isPlaying = false));
-		audio.play();
-	}
-
 	function togglePlay() {
-		if (!audio) return;
-		audio.paused ? audio.play() : audio.pause();
-	}
-
-	function getRandomIndex(exclude: number): number {
-		let newIndex;
-		do {
-			newIndex = Math.floor(Math.random() * playlist.length);
-		} while (newIndex === exclude && playlist.length > 1);
-		return newIndex;
+		audioController.togglePlay();
 	}
 
 	function handleNextTrack() {
-		currentTrackIndex = isShuffled
-			? getRandomIndex(currentTrackIndex)
-			: (currentTrackIndex + 1) % playlist.length;
-		loadTrack(currentTrackIndex);
+		audioController.nextTrack();
 	}
 
 	function handlePrevTrack() {
-		currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
-		loadTrack(currentTrackIndex);
+		audioController.previousTrack();
 	}
 
 	function toggleShuffle() {
-		isShuffled = !isShuffled;
+		audioController.toggleShuffle();
 	}
 
 	function changeVolume(v: number) {
-		volume = v;
-		if (audio) audio.volume = v;
+		audioController.setVolume(v);
 	}
 
 	$effect(() => {
 		if ($isVoiceoverPlaying) {
 			// Voiceover started: pause music if playing
-			if (!audio.paused) {
-				wasPlayingBeforeVoiceover = true;
-				audio.pause();
-			}
+			audioController.handleVoiceoverStart();
 		} else {
 			// Voiceover ended: resume music if it was playing
-			if (wasPlayingBeforeVoiceover) {
-				audio.play();
-				wasPlayingBeforeVoiceover = false;
-			}
+			audioController.handleVoiceoverEnd();
 		}
-	});
-
-	onMount(() => {
-		loadTrack(currentTrackIndex);
 	});
 </script>
 
 <div class="audio-player-wrapper">
 	<div class="audio-player">
 		<div
-			class="vinyl-icon {isPlaying ? 'spin' : ''}"
+			class="vinyl-icon {$audioState.isPlaying ? 'spin' : ''}"
 			onclick={togglePlay}
 			tabindex="0"
 			role="button"
@@ -111,8 +48,11 @@
 		></div>
 		<div class="player-content">
 			<div class="track-title-wrapper">
-				<div class="track-title" class:scroll={playlist[currentTrackIndex].name.length > 20}>
-					{playlist[currentTrackIndex].name}
+				<div
+					class="track-title"
+					class:scroll={$audioState.playlist[$audioState.currentTrackIndex]?.name?.length > 20}
+				>
+					{$audioState.playlist[$audioState.currentTrackIndex]?.name}
 				</div>
 			</div>
 			<div class="controls">
@@ -120,9 +60,9 @@
 					><FontAwesomeIcon icon="backward-step" fixedWidth class="fa-icon" /></button
 				>
 				<button onclick={togglePlay} aria-label="Play/Pause" class="icon-button"
-					>{#key isPlaying}<FontAwesomeIcon
+					>{#key $audioState.isPlaying}<FontAwesomeIcon
 							class="fa-icon"
-							icon={isPlaying ? 'pause' : 'play'}
+							icon={$audioState.isPlaying ? 'pause' : 'play'}
 							fixedWidth
 						/>{/key}</button
 				>
@@ -132,15 +72,19 @@
 				<button
 					onclick={toggleShuffle}
 					aria-label="Toggle Shuffle"
-					class:active={isShuffled}
+					class:active={$audioState.isShuffled}
 					class="icon-button"><FontAwesomeIcon icon="shuffle" fixedWidth class="fa-icon" /></button
 				>
 				<button class="icon-button volume-icon-button"
-					>{#key volume}
+					>{#key $audioState.volume}
 						<FontAwesomeIcon
 							fixedWidth
 							class="icon-button fa-icon"
-							icon={volume < 0.2 ? 'volume-off' : volume < 0.6 ? 'volume-low' : 'volume-high'}
+							icon={$audioState.volume < 0.2
+								? 'volume-off'
+								: $audioState.volume < 0.6
+									? 'volume-low'
+									: 'volume-high'}
 						/>
 					{/key}</button
 				>
@@ -150,9 +94,9 @@
 					min="0"
 					max="1"
 					step="0.01"
-					value={volume}
+					value={$audioState.volume}
 					oninput={(e) => changeVolume(+e.currentTarget.value)}
-					style={`--volume: ${volume}`}
+					style={`--volume: ${$audioState.volume}`}
 				/>
 			</div>
 		</div>

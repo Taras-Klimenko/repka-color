@@ -28,4 +28,4 @@ function runSLIC(imagePath: string): Promise<void> {
   });
 }
 
-runSLIC(path.resolve("tools/original/4.jpg")).catch(console.error);
+runSLIC(path.resolve("tools/original/2.jpg")).catch(console.error);
