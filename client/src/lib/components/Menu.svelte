@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import AudioPlayer from './AudioPlayer.svelte';
 	import { isTouchDevice } from '$lib/utils/isTouchDevice';
+	import { user, authStore } from '$lib/stores/userState';
+	import { goto } from '$app/navigation';
 
 	let isMenuOpen = $state(false);
 	let isTouchDeviceLayout = $state(false);
@@ -17,6 +19,11 @@
 	onMount(() => {
 		isTouchDeviceLayout = isTouchDevice();
 	});
+
+	async function handleLogout() {
+		await authStore.logout();
+		goto('/auth')
+	}
 </script>
 
 <div class="nav-wrapper">
@@ -36,7 +43,7 @@
 			<li><a href="#top" onclick={hideMenu}>Home</a></li>
 			<li><a href="#top" onclick={hideMenu}>About</a></li>
 			<li><a href="#top" onclick={hideMenu}>Projects</a></li>
-			<li><a href="#top" onclick={hideMenu}>Contact</a></li>
+			<li><a href="#top" onclick={handleLogout}>Выйти</a></li>
 		</ul>
 		{#if isTouchDeviceLayout}
 			<div class="audio-player-container-mobile"><AudioPlayer /></div>

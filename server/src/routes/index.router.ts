@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authRouter } from './auth.router';
 import { coloringBookRouter } from './coloringBook.router';
+import { userProgressRouter } from './userProgress.router';
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.get(API_PREFIX, (req, res) => {
 
 router.use(`${API_PREFIX}/auth`, authRouter);
 router.use(`${API_PREFIX}/coloring-books`, coloringBookRouter);
+router.use(`${API_PREFIX}/user-progress`, userProgressRouter);
 
 export { router as apiRouter };

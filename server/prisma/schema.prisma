@@ -65,4 +65,6 @@ model UserPageProgress {
 
   coloringPageId Int
   coloringPage   ColoringPage @relation(fields: [coloringPageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, coloringPageId])
 }

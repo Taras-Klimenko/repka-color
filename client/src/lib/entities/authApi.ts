@@ -36,7 +36,7 @@ export class AuthApi {
 		const { data } = await axiosInstance.post('/auth/register', registerData);
 		const { accessToken } = data.data;
 		localStorage.setItem('accessToken', accessToken);
-		return data;
+		return data.data;
 	}
 
 	static async getCurrentUser(): Promise<{user: User}> {
