@@ -1,5 +1,6 @@
 import { getColoringBookPageAssetUrl } from '$lib/utils/assetUrl';
 import { ColoringBookApi, type ColoringBookPage } from './coloringBookApi';
+import type { Color } from '$lib/types';
 
 export type PageAssets = {
 	page: ColoringBookPage;
@@ -11,7 +12,7 @@ export type PageAssets = {
 		audio: string;
 	};
 	loadedData: {
-		colors: any[];
+		colors: Color[];
 		svg: string;
 	};
 };

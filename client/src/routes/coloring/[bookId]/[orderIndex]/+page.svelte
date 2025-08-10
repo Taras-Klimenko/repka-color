@@ -3,12 +3,11 @@
 	import ColorPalette from '$lib/components/ColorPalette.svelte';
 	import DescriptionBar from '$lib/components/DescriptionBar.svelte';
 	import Menu from '$lib/components/Menu.svelte';
-	// import svg from '../../../../../../server/output/final.svg?raw';
-	// import rawColors from '../../../../../../server/output/colors.json';
 	import { tick, onMount } from 'svelte';
 	import { page } from '$app/state';
 	import type { Color } from '$lib/types';
 	import { AssetLoader, type PageAssets } from '$lib/entities/assetLoader';
+	import { userProgressStore } from '$lib/stores/userProgressState';
 	import '$lib/app.css';
 
 	const { bookId, orderIndex } = page.params;
@@ -18,9 +17,37 @@
 	let selectedColorId = $state<number | null>(null);
 	let isPaletteAnimating = $state(false);
 	let removingColorId = $state<number | null>(null);
-	let hasDescriptionBar = $state(true);
+	let hasDescriptionBar = $derived(!!pageAssets?.page.description);
+	let originalColorsLength = $derived(pageAssets?.loadedData.colors.length || 0);
+	let currentColorsLength = $derived(colors.length);
+	let progressPercentage = $derived(
+		Math.floor(((originalColorsLength - currentColorsLength) / originalColorsLength) * 100)
+	);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let usedColorsIds = $derived.by(() => {
+		if (!pageAssets?.loadedData.colors) {
+			return [];
+		}
+		return pageAssets.loadedData.colors
+			.filter((color) => !colors.some((c) => c.id === color.id))
+			.map((color) => color.id);
+	});
+
+	async function loadExistingProgress() {
+		if (!pageAssets?.page.id) {
+			return;
+		}
+
+		try {
+			const existingProgress = await userProgressStore.loadPageProgress(pageAssets.page.id);
+			if (existingProgress?.currentColors) {
+				colors = existingProgress.currentColors;
+			}
+		} catch (err) {
+			console.error('Failed to load existing progress:', err);
+		}
+	}
 
 	$effect(() => {
 		const abortController = new AbortController();
@@ -41,6 +68,8 @@
 
 				pageAssets = assets;
 				colors = assets.loadedData.colors;
+
+				await loadExistingProgress();
 			} catch (err) {
 				if (!abortController.signal.aborted) {
 					console.error('Failed to load page assets:', err);
@@ -49,15 +78,15 @@
 				if (!abortController.signal.aborted) {
 					loading = false;
 				}
-			}}
-
-			loadPageAssets();
-
-			return () => {
-				abortController.abort();
-			};
+			}
 		}
-	);
+
+		loadPageAssets();
+
+		return () => {
+			abortController.abort();
+		};
+	});
 
 	function handleSelect(colorId: number) {
 		selectedColorId = colorId;
@@ -76,8 +105,11 @@
 		isPaletteAnimating = true;
 
 		colors.splice(index, 1);
-		colors = [...colors]; // trigger reactivity
 
+		// update user progress
+		if (pageAssets?.page.id) {
+			await userProgressStore.updatePageProgress(pageAssets.page.id, progressPercentage, colors);
+		}
 		// Auto-select next color (if any)
 		if (colors.length > 0) {
 			const nextIndex = index < colors.length ? index : colors.length - 1;
@@ -107,7 +139,7 @@
 		<main class="error-content">
 			<h1>Oops! Something went wrong</h1>
 			<p>{error}</p>
-			<button on:click={() => window.location.reload()}>Try Again</button>
+			<button onclick={() => window.location.reload()}>Try Again</button>
 		</main>
 	</div>
 {:else if pageAssets && pageAssets.loadedData && pageAssets.loadedData.svg}
@@ -122,6 +154,8 @@
 							selectedColor={colors.find((color) => color.id === selectedColorId) || null}
 							onCorrectColorClick={() => removeColor(selectedColorId)}
 							originalImageUrl={pageAssets.assets.originalImage}
+							{progressPercentage}
+							{usedColorsIds}
 						/>
 					</div>
 				</div>

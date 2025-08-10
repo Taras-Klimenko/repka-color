@@ -7,12 +7,16 @@
 		svg,
 		originalImageUrl,
 		selectedColor,
-		onCorrectColorClick = () => {}
+		onCorrectColorClick = () => {},
+		progressPercentage = 0,
+		usedColorsIds = []
 	} = $props<{
 		svg: string;
 		originalImageUrl: string;
 		selectedColor: Color | null;
 		onCorrectColorClick: () => void;
+		progressPercentage: number;
+		usedColorsIds?: number[];
 	}>();
 
 	// === creating DOM refs ===
@@ -26,11 +30,11 @@
 	// Progress tracking
 	let hasFinished = $state(false);
 	let isTimelapsing = $state(false);
-	let totalRegions = $state(0);
-	let filledRegions = $state(0);
-	let progressPercentage = $derived(
-		totalRegions === 0 ? 0 : Math.floor((filledRegions / totalRegions) * 100)
-	);
+	// let totalRegions = $state(0);
+	// let filledRegions = $state(0);
+	// let progressPercentage = $derived(
+	// 	totalRegions === 0 ? 0 : Math.floor((filledRegions / totalRegions) * 100)
+	// );
 	let previousHighlightedElement: SVGPathElement | null = null;
 
 	// === setting up zoom and pan state ===
@@ -119,13 +123,12 @@
 			label.remove();
 			colorIdToLabelMap.delete(target.dataset.colorId);
 		}
-		filledRegions += 1;
+
 		onCorrectColorClick();
 	}
 	onMount(() => {
 		allPaths = svgEl.querySelectorAll('path[data-color-id]');
 		regionLabels = svgEl.querySelectorAll('text.region-label');
-		totalRegions = allPaths.length;
 
 		colorIdToPathMap = new Map();
 		allPaths.forEach((el) => {
@@ -140,7 +143,28 @@
 				colorIdToLabelMap.set(el.textContent, el);
 			}
 		});
+
+		applyUsedColors();
 	});
+
+	function applyUsedColors() {
+		if (usedColorsIds.length === 0) {
+			return;
+		}
+		allPaths.forEach((path) => {
+			const colorId = path.dataset.colorId;
+
+			if (colorId && usedColorsIds.includes(Number(colorId))) {
+				path.classList.add('fade-out');
+
+				const label = colorIdToLabelMap.get(colorId);
+				if (label) {
+					label.remove();
+					colorIdToLabelMap.delete(colorId);
+				}
+			}
+		});
+	}
 
 	$effect(() => {
 		const newId = selectedColor ? String(selectedColor.id) : null;
