@@ -23,6 +23,13 @@ export type UserPageProgress = {
 	};
 };
 
+export type BookCompletionSummary = {
+	bookId: number;
+	completedPages: number;
+	totalPages: number;
+	completionPercentage: number;
+};
+
 export class UserProgressApi {
 	static async getUserPageProgress(
 		userId: number,
@@ -47,6 +54,11 @@ export class UserProgressApi {
 		bookId: number
 	): Promise<UserPageProgress[]> {
 		const { data } = await axiosInstance.get(`/user-progress/${userId}/book/${bookId}`);
+		return data.data;
+	}
+
+	static async getUserBookCompletionSummary(userId: number): Promise<BookCompletionSummary[]> {
+		const {data} = await axiosInstance.get(`/user-progress/summary/${userId}`);
 		return data.data;
 	}
 

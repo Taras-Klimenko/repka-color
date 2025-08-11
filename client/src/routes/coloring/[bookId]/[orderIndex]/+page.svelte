@@ -12,6 +12,8 @@
 
 	const { bookId, orderIndex } = page.params;
 
+	let canvasResetKey = $state(0);
+
 	let pageAssets = $state<PageAssets | null>(null);
 	let colors = $state<Color[]>([]);
 	let selectedColorId = $state<number | null>(null);
@@ -49,6 +51,19 @@
 		}
 	}
 
+	async function resetPage() {
+		if (!pageAssets) {
+			return;
+		}
+
+		colors = [...pageAssets.loadedData.colors];
+		selectedColorId = null;
+		isPaletteAnimating = false;
+		canvasResetKey++;
+
+		userProgressStore.clearRestartFlag(pageAssets.page.id);
+	}
+
 	$effect(() => {
 		const abortController = new AbortController();
 		// Reset state when bookId or orderIndex changes
@@ -69,7 +84,11 @@
 				pageAssets = assets;
 				colors = assets.loadedData.colors;
 
-				await loadExistingProgress();
+				if (userProgressStore.isPageMarkedForRestart(assets.page.id)) {
+					await resetPage();
+				} else {
+					await loadExistingProgress();
+				}
 			} catch (err) {
 				if (!abortController.signal.aborted) {
 					console.error('Failed to load page assets:', err);
@@ -83,8 +102,17 @@
 
 		loadPageAssets();
 
+		const handleRestart = (event: CustomEvent) => {
+			if (event.detail.pageId === pageAssets?.page.id) {
+				resetPage();
+			}
+		};
+
+		window.addEventListener('restart-page', handleRestart as EventListener);
+
 		return () => {
 			abortController.abort();
+			window.removeEventListener('restart-page', handleRestart as EventListener);
 		};
 	});
 
@@ -144,36 +172,38 @@
 	</div>
 {:else if pageAssets && pageAssets.loadedData && pageAssets.loadedData.svg}
 	<div class="app">
-		<Menu />
-		<main>
-			<div class="main-page__layout">
-				<div class="main-area__layout">
-					<div class="canvas">
-						<PictureCanvas
-							svg={pageAssets.loadedData.svg}
-							selectedColor={colors.find((color) => color.id === selectedColorId) || null}
-							onCorrectColorClick={() => removeColor(selectedColorId)}
-							originalImageUrl={pageAssets.assets.originalImage}
-							{progressPercentage}
-							{usedColorsIds}
+		<Menu pageId={pageAssets.page.id} />
+		{#key canvasResetKey}
+			<main>
+				<div class="main-page__layout">
+					<div class="main-area__layout">
+						<div class="canvas">
+							<PictureCanvas
+								svg={pageAssets.loadedData.svg}
+								selectedColor={colors.find((color) => color.id === selectedColorId) || null}
+								onCorrectColorClick={() => removeColor(selectedColorId)}
+								originalImageUrl={pageAssets.assets.originalImage}
+								{progressPercentage}
+								{usedColorsIds}
+							/>
+						</div>
+					</div>
+					<div class="floating-palette {hasDescriptionBar ? 'with-description' : 'no-description'}">
+						<ColorPalette
+							{colors}
+							{selectedColorId}
+							onSelect={handleSelect}
+							isAnimating={isPaletteAnimating}
+							{removingColorId}
 						/>
 					</div>
-				</div>
-				<div class="floating-palette {hasDescriptionBar ? 'with-description' : 'no-description'}">
-					<ColorPalette
-						{colors}
-						{selectedColorId}
-						onSelect={handleSelect}
-						isAnimating={isPaletteAnimating}
-						{removingColorId}
+					<DescriptionBar
+						text={pageAssets.page.description || ''}
+						audioSrc={pageAssets.assets.audio}
 					/>
 				</div>
-				<DescriptionBar
-					text={pageAssets.page.description || ''}
-					audioSrc={pageAssets.assets.audio}
-				/>
-			</div>
-		</main>
+			</main>
+		{/key}
 	</div>
 {/if}
 

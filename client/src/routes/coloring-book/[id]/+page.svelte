@@ -3,6 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ColoringBookApi } from '$lib/entities/coloringBookApi';
+	import { UserProgressApi, type UserPageProgress } from '$lib/entities/userProgressApi';
+	import { user } from '$lib/stores/userState';
 	import { getColoringBookPageAssetUrl } from '$lib/utils/assetUrl';
 	import type { ColoringBook, ColoringBookPage } from '$lib/entities/coloringBookApi';
 	import Menu from '$lib/components/Menu.svelte';
@@ -19,8 +21,17 @@
 		updatedAt: new Date()
 	});
 	let pages: ColoringBookPage[] = $state([]);
+	let userProgress: UserPageProgress[] = $state([]);
 	let isLoading: boolean = $state(true);
 	let error: string = $state('');
+
+	let progressMap = $derived.by(() => {
+		const map = new Map<number, UserPageProgress>();
+		userProgress.forEach((progress) => {
+			map.set(progress.coloringPageId, progress);
+		});
+		return map;
+	});
 
 	onMount(async () => {
 		try {
@@ -30,6 +41,15 @@
 			]);
 			book = bookData;
 			pages = pagesData;
+
+			const currentUser = $user;
+			if (currentUser) {
+				try {
+					userProgress = await UserProgressApi.getUserProgressByBookId(currentUser.id, book.id);
+				} catch (err) {
+					console.error('Failed to load user progress', err);
+				}
+			}
 		} catch (err) {
 			console.error('Failed to load book data', err);
 			error = 'Не удалось загрузить данные о раскраске.';
@@ -40,6 +60,11 @@
 
 	function handlePageClick(page: ColoringBookPage) {
 		goto(`/coloring/${bookId}/${page.orderIndex}`);
+	}
+
+	function getPageProgress(pageId: number): number {
+		const progress = progressMap.get(pageId);
+		return progress?.progressPercentage || 0;
 	}
 </script>
 
@@ -52,23 +77,53 @@
 				{#if book.description}
 					<p class="book-description">{book.description}</p>
 				{/if}
-				<p class="page-count">{pages.length} pages</p>
 			</div>
 		</div>
 
 		<div class="pages-grid">
 			{#each pages as page (page.id)}
+				{@const pageProgress = $user ? getPageProgress(page.id) : 0}
+				{@const thumbnailUrl = getColoringBookPageAssetUrl(book.id, page.orderIndex).thumbnail}
+				{@const originalImageUrl = getColoringBookPageAssetUrl(
+					book.id,
+					page.orderIndex
+				).originalImage}
+
 				<div class="page-card" onclick={() => handlePageClick(page)}>
 					<div class="page-thumbnail">
+						{#if $user && pageProgress === 100}
+						<div class="completion-badge">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="white" />
+							</svg>
+						</div>
+						{/if}
 						<img
-							src={getColoringBookPageAssetUrl(book.id, page.orderIndex).thumbnail}
+							class="thumbnail-bw"
+							src={thumbnailUrl}
 							alt={page.title}
 							loading="lazy"
 							onerror={(e) => {
 								// Fallback to original image if thumbnail doesn't exist
-								e.target.src = getColoringBookPageAssetUrl(book.id, page.orderIndex).originalImage;
+								e.target.src = originalImageUrl;
 							}}
 						/>
+						{#if $user && pageProgress > 0}
+							<div class="thumbnail-colored" style="--progress-width: {pageProgress}%;">
+								<img
+									src={thumbnailUrl}
+									alt={page.title}
+									loading="lazy"
+									onerror={(e) => {
+										e.target.src = originalImageUrl;
+									}}
+								/>
+							</div>
+						{/if}
 						<div class="page-overlay">
 							<span class="page-number">{page.orderIndex}</span>
 						</div>
@@ -149,15 +204,37 @@
 	.page-thumbnail {
 		position: relative;
 		width: 100%;
-		height: 200px;
+		height: 280px;
 		overflow: hidden;
+	}
+
+	.thumbnail-bw {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		filter: grayscale(100%);
+	}
+
+	.thumbnail-colored {
+		position: absolute;
+		top: 0;
+		left: 0;
+		height: 100%;
+		width: 100%;
+		overflow: hidden;
+		clip-path: inset(0 calc(100% - var(--progress-width, 0%)) 0 0);
+	}
+
+	.thumbnail-colored img {
+		width: 100vw;
+		height: 100%;
+		object-fit: cover;
 	}
 
 	.page-thumbnail img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		transition: transform 0.3s ease;
 	}
 
 	.page-overlay {
@@ -174,6 +251,26 @@
 		justify-content: center;
 		font-size: 14px;
 		font-weight: bold;
+	}
+
+	.completion-badge {
+		position: absolute;
+		top: 10px;
+		left: 10px;
+		background: #22c55e;
+		border-radius: 50%;
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 10;
+		box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+	}
+
+	.completion-badge svg {
+		width: 24px;
+		height: 24px;
 	}
 
 	.page-info {

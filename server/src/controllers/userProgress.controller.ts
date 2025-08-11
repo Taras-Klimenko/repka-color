@@ -157,4 +157,37 @@ export class UserProgressController {
       return;
     }
   }
+
+  static async getUserBookCompletionSummary(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+
+      const completionSummary =
+        await UserProgressService.getUserBookCompletionSummary(Number(userId));
+
+      res
+        .status(200)
+        .json(
+          formatResponse(
+            200,
+            "User book completion summary fetched",
+            completionSummary,
+            null
+          )
+        );
+      return;
+    } catch (error) {
+      res
+        .status(500)
+        .json(
+          formatResponse(
+            500,
+            "Server error while fetching user book completion summary",
+            null,
+            error
+          )
+        );
+      return;
+    }
+  }
 }

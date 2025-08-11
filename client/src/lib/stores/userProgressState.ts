@@ -2,6 +2,8 @@ import { writable, derived, get } from 'svelte/store';
 import { user } from './userState';
 import { UserProgressApi, type UserPageProgress } from '$lib/entities/userProgressApi';
 
+let restartFlags = new Set<number>();
+
 type UserProgressState = {
 	progressCache: Map<number, UserPageProgress>;
 	pendingProgressUpdates: Map<number, NodeJS.Timeout>;
@@ -109,6 +111,35 @@ function createUserProgressStore() {
 				console.error('Error loading page progress:', error);
 				return null;
 			}
+		},
+
+		async clearPageProgress(pageId: number) {
+			const currentUser = get(user);
+
+			if (!currentUser) {
+				return;
+			}
+
+			update((state) => {
+				const newCache = new Map(state.progressCache);
+				newCache.delete(pageId);
+				
+				return {
+					...state,
+					progressCache: newCache,
+					error: null
+				};
+			});
+		},
+
+		markPageForRestart(pageId: number) {
+			restartFlags.add(pageId);
+		},
+		isPageMarkedForRestart(pageId: number) {
+			return restartFlags.has(pageId);
+		},
+		clearRestartFlag(pageId: number) {
+			restartFlags.delete(pageId);
 		}
 	};
 }

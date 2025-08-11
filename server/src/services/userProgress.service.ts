@@ -65,4 +65,62 @@ export class UserProgressService {
 
     return progress;
   }
+
+  static async getUserBookCompletionSummary(userId: number) {
+    const progress = await prisma.userPageProgress.findMany({
+      where: { userId },
+      include: {
+        coloringPage: {
+          select: {
+            id: true,
+            coloringBook: {
+              select: {
+                id: true,
+                title: true,
+                _count: { select: { pages: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const bookCompletionMap = new Map<
+      number,
+      {
+        completedPages: number;
+        totalPages: number;
+        completionPercentage: number;
+      }
+    >();
+
+    progress.forEach((page) => {
+      const bookId = page.coloringPage.coloringBook.id;
+      const totalPages = page.coloringPage.coloringBook._count.pages;
+
+      if (!bookCompletionMap.has(bookId)) {
+        bookCompletionMap.set(bookId, {
+          completedPages: 0,
+          totalPages,
+          completionPercentage: 0,
+        });
+      }
+
+      const bookData = bookCompletionMap.get(bookId);
+      if (page.progressPercentage === 100) {
+        bookData!.completedPages++;
+      }
+    });
+
+    bookCompletionMap.forEach((bookData) => {
+      bookData.completionPercentage =
+        bookData.totalPages > 0
+          ? Math.round((bookData.completedPages / bookData.totalPages) * 100)
+          : 0;
+    });
+
+    return Array.from(bookCompletionMap.entries()).map(
+      ([bookId, bookData]) => ({ bookId, ...bookData })
+    );
+  }
 }

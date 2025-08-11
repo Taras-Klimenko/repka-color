@@ -5,6 +5,10 @@ const router = Router();
 
 router.get("/:userId", UserProgressController.getAllUserPageProgress);
 router.get(
+  "/summary/:userId",
+  UserProgressController.getUserBookCompletionSummary
+);
+router.get(
   "/:userId/:coloringPageId",
   UserProgressController.getUserPageProgress
 );

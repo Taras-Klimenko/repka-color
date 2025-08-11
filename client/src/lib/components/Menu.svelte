@@ -1,9 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import AudioPlayer from './AudioPlayer.svelte';
 	import { isTouchDevice } from '$lib/utils/isTouchDevice';
 	import { user, authStore } from '$lib/stores/userState';
 	import { goto } from '$app/navigation';
+	import { userProgressStore } from '$lib/stores/userProgressState';
+
+	const { bookId, orderIndex } = page.params;
+
+	const { pageId } = $props<{ pageId?: number }>();
 
 	let isMenuOpen = $state(false);
 	let isTouchDeviceLayout = $state(false);
@@ -20,9 +26,30 @@
 		isTouchDeviceLayout = isTouchDevice();
 	});
 
+	function handleBackToHomePage() {
+		goto('/');
+		hideMenu();
+	}
+
 	async function handleLogout() {
 		await authStore.logout();
-		goto('/auth')
+		goto('/auth');
+	}
+
+	function handleBackToColoringBook() {
+		goto(`/coloring-book/${bookId}`);
+		hideMenu();
+	}
+
+	async function handleRestart() {
+		const currentUser = $user;
+		if (currentUser) {
+			await userProgressStore.clearPageProgress(pageId);
+			userProgressStore.markPageForRestart(pageId);
+		}
+
+		window.dispatchEvent(new CustomEvent('restart-page', { detail: { pageId } }));
+		hideMenu();
 	}
 </script>
 
@@ -40,10 +67,14 @@
 	</div>
 	<nav id="nav" class:active={isMenuOpen}>
 		<ul>
-			<li><a href="#top" onclick={hideMenu}>Home</a></li>
-			<li><a href="#top" onclick={hideMenu}>About</a></li>
-			<li><a href="#top" onclick={hideMenu}>Projects</a></li>
-			<li><a href="#top" onclick={handleLogout}>Выйти</a></li>
+			<li><a onclick={handleBackToHomePage}>На главную</a></li>
+			{#if bookId && orderIndex}
+				<li><a onclick={handleBackToColoringBook}>К раскраске</a></li>
+				<li>
+					<a onclick={handleRestart}>Начать заново</a>
+				</li>
+			{/if}
+			<li><a onclick={handleLogout}>Выйти</a></li>
 		</ul>
 		{#if isTouchDeviceLayout}
 			<div class="audio-player-container-mobile"><AudioPlayer /></div>
@@ -137,6 +168,7 @@
 	nav a {
 		text-decoration: none;
 		color: black;
+		cursor: pointer;
 
 		&:hover {
 			padding-bottom: 5px;
