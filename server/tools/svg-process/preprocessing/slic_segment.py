@@ -39,7 +39,7 @@ def slic_segment_enhanced(image: np.ndarray, segments=None, compactness=COMPACTN
         image, 
         n_segments=segments, 
         compactness=compactness, 
-        start_label=1,
+        start_label=0,
         enforce_connectivity=True,  # Ensures regions are connected
         convert2lab=True,  # Better color space for segmentation
         sigma=1  # Gaussian smoothing for better edge preservation
@@ -272,6 +272,8 @@ def segment_image_enhanced(
     
     print(f"Initial segmentation complete: {len(np.unique(labels))} regions")
 
+    
+
     # Convert to LAB color space for better color-based merging
     image_lab = rgb2lab(image)
     rag = build_rag(image_lab, labels)
@@ -306,6 +308,8 @@ def segment_image_enhanced(
     if relabel:
         labels, _, _ = relabel_sequential(labels)
         print(f"After relabeling: {len(np.unique(labels))} regions")
+    
+    labels = labels + 1
 
     # Generate output
     avg_color = color.label2rgb(labels, image, kind='avg')
