@@ -1,0 +1,28 @@
+{
+	"name": "Brush - Digital Coloring Books App",
+	"short_name": "Brush",
+	"description": "An interactive digital coloring books app with audio accompaniment",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#ffffff",
+	"theme_color": "#4f46e5",
+	"orientation": "portrait-primary",
+	"scope": "/",
+	"icons": [
+		{
+			"src": "/favicon.png",
+			"sizes": "128x128",
+			"type": "image/png",
+			"purpose": "any maskable"
+		},
+		{
+			"src": "/brush-icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any maskable"
+		}
+	],
+	"categories": ["entertainment", "education", "games"],
+	"lang": ["en", "ru"],
+	"dir": "ltr"
+}

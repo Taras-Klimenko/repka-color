@@ -2,11 +2,14 @@
     import {onMount} from 'svelte';
     import {authStore, isAuthenticated, isLoading, isInitialized, user} from '$lib/stores/userState';
     import {goto} from '$app/navigation';
+    import {registerServiceWorker, checkForAppUpdate} from '$lib/pwa';
     import '$lib/app.css';
 
 
     onMount(async () => {
         await authStore.initialize();
+        registerServiceWorker();
+        checkForAppUpdate();
     })
 </script>
 
