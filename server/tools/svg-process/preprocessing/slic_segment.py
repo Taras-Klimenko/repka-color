@@ -20,9 +20,9 @@ def calculate_segments(image_shape):
 
 # Default settings (used when adaptive calculation isn't desired)
 DEFAULT_SEGMENTS = 12000
-COMPACTNESS = 10          # Higher = more regular shapes, less edge-following
-MERGE_THRESHOLD = 20      # Higher = more aggressive merging
-MIN_REGION_SIZE = 300     # Remove regions smaller than this
+COMPACTNESS = 1           # Higher = more regular shapes, less edge-following
+MERGE_THRESHOLD = 15      # Higher = more aggressive merging
+MIN_REGION_SIZE = 400     # Remove regions smaller than this
 RELABEL_REGIONS = True    # Whether to relabel regions sequentially
 OUTPUT_DIR = "output"     # Output folder
 
@@ -45,10 +45,6 @@ def slic_segment_enhanced(image: np.ndarray, segments=None, compactness=COMPACTN
         sigma=1  # Gaussian smoothing for better edge preservation
     )
 
-# Legacy function for backward compatibility
-def slic_segment(image: np.ndarray, segments=DEFAULT_SEGMENTS, compactness=COMPACTNESS) -> np.ndarray:
-    return segmentation.slic(image, n_segments=segments, compactness=compactness, start_label=1)
-
 # Converts image to LAB color space and builds Region Adjacency Graph (RAG) for merging superpixels
 def build_rag(image_lab: np.ndarray, labels: np.ndarray) -> graph.RAG:
     return graph.rag_mean_color(image_lab, labels)
@@ -67,15 +63,11 @@ def weight_func_enhanced(g, src, dst, n):
     
     # Add slight penalty for very different regions to preserve important boundaries
     # This helps maintain distinct features in coloring books
-    if color_weight > 50:  # High color difference threshold
+    if color_weight > 40:  # High color difference threshold
         color_weight *= 1.2  # Increase weight to make merging less likely
     
     return {'weight': color_weight}
 
-# Legacy weight function for backward compatibility
-def weight_func(g, src, dst, n):
-    diff = g.nodes[dst]['mean color'] - g.nodes[n]['mean color']
-    return {'weight': np.linalg.norm(diff)}
 
 # Enhanced small region merging with color similarity consideration
 def merge_small_regions_enhanced(labels: np.ndarray, image: np.ndarray, min_size=MIN_REGION_SIZE) -> np.ndarray:
@@ -140,53 +132,29 @@ def merge_small_regions_enhanced(labels: np.ndarray, image: np.ndarray, min_size
     
     return labels
 
-# Legacy function for backward compatibility
-def merge_small_regions(labels: np.ndarray, min_size=MIN_REGION_SIZE) -> np.ndarray:
-    label_sizes = dict(zip(*np.unique(labels, return_counts=True)))
-    small_labels = [l for l, s in label_sizes.items() if s < min_size]
-
-    label_adjacency = defaultdict(set)
-    padded = np.pad(labels, 1, mode='edge')
-
-    for y in range(1, padded.shape[0] - 1):
-        for x in range(1, padded.shape[1] - 1):
-            center = padded[y, x]
-            neighbors = set(padded[y - 1:y + 2, x - 1:x + 2].flatten())
-            neighbors.discard(center)
-            label_adjacency[center].update(neighbors)
-
-    for label in small_labels:
-        mask = labels == label
-        large_neighbors = [n for n in label_adjacency[label] if n not in small_labels]
-        if not large_neighbors:
-            continue
-
-        neighbor_counts = {
-            n: np.sum((labels == n) & find_boundaries(mask, connectivity=1))
-            for n in large_neighbors
-        }
-
-        if neighbor_counts:
-            best = max(neighbor_counts, key=neighbor_counts.get)
-            labels[mask] = best
-
-    return labels
 
 # Enhanced visual center computation with better edge handling
 def compute_visual_centers_enhanced(label_map: np.ndarray, output_path: str):
-    """Enhanced visual center computation with better edge handling"""
+    """Enhanced visual center computation with region size calculation for smart labels"""
     height, width = label_map.shape
     centers = {}
+    region_sizes = {}
     
-    print(f"Computing visual centers for {len(np.unique(label_map)) - 1} regions...")
+    unique_labels = np.unique(label_map)
+    print(f"Computing visual centers and sizes for {len(unique_labels)} regions...")
 
-    for label in np.unique(label_map):
+    for label in unique_labels:
         if label == 0:
             continue
 
         mask = (label_map == label).astype(np.uint8)
-        if np.count_nonzero(mask) == 0:
+        pixel_count = np.count_nonzero(mask)
+        
+        if pixel_count == 0:
             continue
+
+        # Calculate region size (pixel count)
+        region_sizes[int(label)] = pixel_count
 
         # Use distance transform to find the most central point
         distance = distance_transform_edt(mask)
@@ -209,42 +177,18 @@ def compute_visual_centers_enhanced(label_map: np.ndarray, output_path: str):
 
         centers[int(label)] = [int(x), int(y)]
 
-    with open(output_path, 'w') as f:
-        json.dump(centers, f, indent=2)
+    # Save both centers and sizes
+    output_data = {
+        'centers': centers,
+        'sizes': region_sizes
+    }
     
-    print(f"Visual centers saved to {output_path}")
-
-# Legacy function for backward compatibility
-def compute_visual_centers(label_map: np.ndarray, output_path: str):
-    height, width = label_map.shape
-    centers = {}
-
-    for label in np.unique(label_map):
-        if label == 0:
-            continue
-
-        mask = (label_map == label).astype(np.uint8)
-        if np.count_nonzero(mask) == 0:
-            continue
-
-        distance = distance_transform_edt(mask)
-        y, x = np.unravel_index(np.argmax(distance), distance.shape)
-
-        # Check how close to the edge the computed center is
-        margin = 5  # pixels
-        if (
-            x <= margin or x >= width - margin or
-            y <= margin or y >= height - margin
-        ):
-            # Too close to edge, fallback to geometric center
-            weighted_distance = distance * mask
-            cy, cx = center_of_mass(weighted_distance)
-            x, y = int(cx), int(cy)
-
-        centers[int(label)] = [int(x), int(y)]
-
     with open(output_path, 'w') as f:
-        json.dump(centers, f, indent=2)
+        json.dump(output_data, f, indent=2)
+    
+    print(f"Visual centers and region sizes saved to {output_path}")
+    print(f"Region size range: {min(region_sizes.values())} - {max(region_sizes.values())} pixels")
+
 
 # Enhanced main segmentation pipeline
 def segment_image_enhanced(
@@ -255,7 +199,6 @@ def segment_image_enhanced(
     merge_thresh: float = MERGE_THRESHOLD,
     min_region_size: int = MIN_REGION_SIZE,
     relabel: bool = RELABEL_REGIONS,
-    use_enhanced: bool = True  # New parameter to control enhancement level
 ):
     """Enhanced segmentation pipeline with improved quality for coloring book generation"""
     print(f"Processing image: {input_path}")
@@ -265,10 +208,8 @@ def segment_image_enhanced(
     print(f"Image loaded: {image.shape}")
     
     # Enhanced SLIC segmentation
-    if use_enhanced:
-        labels = slic_segment_enhanced(image, segments, compactness)
-    else:
-        labels = slic_segment(image, segments or DEFAULT_SEGMENTS, compactness)
+
+    labels = slic_segment_enhanced(image, segments, compactness)
     
     print(f"Initial segmentation complete: {len(np.unique(labels))} regions")
 
@@ -279,28 +220,17 @@ def segment_image_enhanced(
     rag = build_rag(image_lab, labels)
 
     # Enhanced hierarchical merging
-    if use_enhanced:
-        labels = graph.merge_hierarchical(
+    labels = graph.merge_hierarchical(
             labels, rag, thresh=merge_thresh,
             rag_copy=False, in_place_merge=True,
             merge_func=merge_func, 
-            weight_func=weight_func_enhanced
-        )
-    else:
-        labels = graph.merge_hierarchical(
-            labels, rag, thresh=merge_thresh,
-            rag_copy=False, in_place_merge=True,
-            merge_func=merge_func, 
-            weight_func=weight_func
-        )
+            weight_func=weight_func_enhanced)
     
     print(f"After merging: {len(np.unique(labels))} regions")
 
     # Enhanced small region merging
-    if use_enhanced:
-        labels = merge_small_regions_enhanced(labels, image, min_region_size)
-    else:
-        labels = merge_small_regions(labels, min_region_size)
+    labels = merge_small_regions_enhanced(labels, image, min_region_size)
+
     
     print(f"After small region merging: {len(np.unique(labels))} regions")
 
@@ -320,30 +250,12 @@ def segment_image_enhanced(
     io.imsave(f'{output_dir}/avg_colored.png', (avg_color * 255).astype(np.uint8))
     
     # Use enhanced visual center computation
-    if use_enhanced:
-        compute_visual_centers_enhanced(labels, f'{output_dir}/visual_centers.json')
-    else:
-        compute_visual_centers(labels, f'{output_dir}/visual_centers.json')
+    compute_visual_centers_enhanced(labels, f'{output_dir}/visual_centers.json')
+
 
     print(f' Enhanced segmentation complete!')
     print(f' Output saved to: {output_dir}')
-    print(f' Generated {len(np.unique(labels)) - 1} coloring regions')
-
-# Legacy function for backward compatibility
-def segment_image(
-    input_path: str,
-    output_dir: str = OUTPUT_DIR,
-    segments: int = DEFAULT_SEGMENTS,
-    compactness: float = COMPACTNESS,
-    merge_thresh: float = MERGE_THRESHOLD,
-    min_region_size: int = MIN_REGION_SIZE,
-    relabel: bool = RELABEL_REGIONS
-):
-    """Legacy segmentation function for backward compatibility"""
-    return segment_image_enhanced(
-        input_path, output_dir, segments, compactness, 
-        merge_thresh, min_region_size, relabel, use_enhanced=False
-    )
+    print(f' Generated {len(np.unique(labels))} coloring regions')
 
 # Command Line Interface Entrypoint
 if __name__ == "__main__":
@@ -357,4 +269,4 @@ if __name__ == "__main__":
     use_enhanced = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     
     print(f"Starting {'enhanced' if use_enhanced else 'legacy'} segmentation...")
-    segment_image_enhanced(input_path, output_dir, use_enhanced=bool(use_enhanced))
+    segment_image_enhanced(input_path, output_dir)

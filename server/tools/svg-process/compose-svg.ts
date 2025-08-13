@@ -10,6 +10,46 @@ const visualCentersPath = path.resolve("output/visual_centers.json");
 const outlinesPath = path.resolve("output/processed/outlines.svg");
 const outputPath = path.resolve("output/regions.svg");
 
+const LABEL_CONFIG = {
+  minFontSize: 6,
+  maxFontSize: 14,
+  minRegionSize: 500,
+  maxRegionSize: 50000,
+};
+
+function calculateFontSize(regionSize: number): number {
+  const normalizedSize = Math.max(
+    0,
+    Math.min(
+      1,
+      (regionSize - LABEL_CONFIG.minRegionSize) /
+        (LABEL_CONFIG.maxRegionSize - LABEL_CONFIG.minRegionSize)
+    )
+  );
+
+  const fontSize =
+    LABEL_CONFIG.minFontSize +
+    (LABEL_CONFIG.maxFontSize - LABEL_CONFIG.minFontSize) * normalizedSize;
+
+  return Math.round(fontSize);
+}
+
+function getLabelSizeClass(regionSize: number): string {
+  if (regionSize < 500) {
+    return "region-label-xsmall";
+  }
+  if (regionSize < 1000) {
+    return "region-label-small";
+  }
+  if (regionSize < 3000) {
+    return "region-label-medium";
+  }
+  if (regionSize < 10000) {
+    return "region-label-large";
+  }
+  return "region-label-xlarge";
+}
+
 async function composeFinalSVG() {
   const regionColors = JSON.parse(await fs.readFile(regionColorsPath, "utf-8"));
   const files = await fs.readdir(svgsDir);
@@ -79,9 +119,10 @@ async function composeFinalSVG() {
   // 	});
   // }
 
-  const visualCenters: Record<string, [number, number]> = JSON.parse(
-    await fs.readFile(visualCentersPath, "utf-8")
-  );
+  const visualData = JSON.parse(await fs.readFile(visualCentersPath, "utf-8"));
+
+  let visualCenters: Record<string, [number, number]> = visualData.centers;
+  let regionSizes: Record<string, number> = visualData.sizes;
 
   // Build the final SVG
   const root = create({ version: "1.0" }).ele("svg", {
@@ -97,6 +138,8 @@ async function composeFinalSVG() {
 
   for (const [regionId, [x, y]] of Object.entries(visualCenters)) {
     const colorId = colorIdMap.find((c) => c.id === parseInt(regionId))?.id;
+    const fontSize = calculateFontSize(regionSizes[regionId]);
+    const labelSizeClass = getLabelSizeClass(regionSizes[regionId])
     if (!colorId) continue;
 
     viewportGroup
@@ -105,10 +148,10 @@ async function composeFinalSVG() {
         y: y.toFixed(2),
         "text-anchor": "middle",
         "dominant-baseline": "middle",
-        "font-size": "10",
+        "font-size": fontSize.toString(),
         fill: "black",
         "pointer-events": "none",
-        class: "region-label",
+        class: `region-label ${labelSizeClass}`,
       })
       .txt(colorId.toString());
   }

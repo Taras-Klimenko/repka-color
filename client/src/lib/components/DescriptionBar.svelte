@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { isVoiceoverPlaying } from '$lib/stores/audioState';
+	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
 
 	const { text, audioSrc } = $props<{ text: string; audioSrc: string }>();
 
@@ -72,9 +73,9 @@
 <div class="description-bar-container">
 	<button class="play-button" onclick={handlePlay}
 		>{#if isPlaying}
-			⏸️
+			<FontAwesomeIcon icon="pause" fixedWidth />
 		{:else}
-			▶️
+			<FontAwesomeIcon icon="play" fixedWidth />
 		{/if}</button
 	>
 	<div class="description-text-scroll">
@@ -126,10 +127,6 @@
 		border: none;
 		cursor: pointer;
 		color: #444;
-		transition: transform 0.2s ease;
-	}
-	.play-button:hover {
-		transform: scale(1.1);
 	}
 
 	.highlighted {

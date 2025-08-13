@@ -55,6 +55,25 @@
 		});
 	}
 
+	function updateLabelVisibility() {
+		if (!svgEl) {
+			return;
+		}
+		svgEl.classList.remove('zoom-xsmall', 'zoom-small', 'zoom-medium', 'zoom-large', 'zoom-xlarge');
+
+		if (scale >= 3) {
+			svgEl.classList.add('zoom-xlarge');
+		} else if (scale >= 2.5) {
+			svgEl.classList.add('zoom-large');
+		} else if (scale >= 2) {
+			svgEl.classList.add('zoom-medium');
+		} else if (scale >= 1.5) {
+			svgEl.classList.add('zoom-small');
+		} else {
+			svgEl.classList.add('zoom-xsmall');
+		}
+	}
+
 	// === mouse pan events ===
 	function handlePointerDown(event: PointerEvent) {
 		if (isTimelapsing) {
@@ -109,6 +128,7 @@
 
 		scale *= delta;
 		updateTransform();
+		updateLabelVisibility();
 	}
 
 	function handlePointerClick(target: SVGElement) {
@@ -126,6 +146,7 @@
 
 		onCorrectColorClick();
 	}
+
 	onMount(() => {
 		allPaths = svgEl.querySelectorAll('path[data-color-id]');
 		regionLabels = svgEl.querySelectorAll('text.region-label');
@@ -143,7 +164,7 @@
 				colorIdToLabelMap.set(el.textContent, el);
 			}
 		});
-
+		updateLabelVisibility();
 		applyUsedColors();
 	});
 
@@ -268,6 +289,10 @@
 		display: block;
 		cursor: grab;
 		flex: 1;
+		touch-action: none;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
 	}
 
 	:global(.color-region) {
@@ -324,6 +349,46 @@
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
+	}
+
+	:global(.region-label) {
+		transition: opacity 0.3s ease;
+		pointer-events: none;
+		opacity: 0;
+	}
+
+	:global(.svg-container.zoom-xsmall .region-label-xlarge) {
+		opacity: 1;
+	}
+
+	/* Small zoom - show large+ labels */
+	:global(.svg-container.zoom-small .region-label-large),
+	:global(.svg-container.zoom-small .region-label-xlarge) {
+		opacity: 1;
+	}
+
+	/* Medium zoom - show medium+ labels */
+	:global(.svg-container.zoom-medium .region-label-medium),
+	:global(.svg-container.zoom-medium .region-label-large),
+	:global(.svg-container.zoom-medium .region-label-xlarge) {
+		opacity: 1;
+	}
+
+	/* Large zoom - show small+ labels */
+	:global(.svg-container.zoom-large .region-label-small),
+	:global(.svg-container.zoom-large .region-label-medium),
+	:global(.svg-container.zoom-large .region-label-large),
+	:global(.svg-container.zoom-large .region-label-xlarge) {
+		opacity: 1;
+	}
+
+	/* Extra large zoom - show all labels */
+	:global(.svg-container.zoom-xlarge .region-label-xsmall),
+	:global(.svg-container.zoom-xlarge .region-label-small),
+	:global(.svg-container.zoom-xlarge .region-label-medium),
+	:global(.svg-container.zoom-xlarge .region-label-large),
+	:global(.svg-container.zoom-xlarge .region-label-xlarge) {
+		opacity: 1;
 	}
 
 	:global(.color-region.timelapse-start) {
