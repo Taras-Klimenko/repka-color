@@ -30,11 +30,6 @@
 	// Progress tracking
 	let hasFinished = $state(false);
 	let isTimelapsing = $state(false);
-	// let totalRegions = $state(0);
-	// let filledRegions = $state(0);
-	// let progressPercentage = $derived(
-	// 	totalRegions === 0 ? 0 : Math.floor((filledRegions / totalRegions) * 100)
-	// );
 	let previousHighlightedElement: SVGPathElement | null = null;
 
 	// === setting up zoom and pan state ===
@@ -45,14 +40,9 @@
 	let last = $state({ x: 0, y: 0 });
 
 	function updateTransform() {
-		requestAnimationFrame(() => {
-			if (viewGroup) {
-				viewGroup.setAttribute(
-					'transform',
-					`translate(${translate.x},${translate.y}) scale(${scale})`
-				);
-			}
-		});
+		if (svgEl) {
+			svgEl.style.transform = `translate(${translate.x}px, ${translate.y}px) scale(${scale})`;
+		}
 	}
 
 	function updateLabelVisibility() {
@@ -113,22 +103,20 @@
 	}
 
 	function handleWheel(event: WheelEvent) {
+		if (isTimelapsing) {
+			return;
+		}
 		event.preventDefault();
 		const zoomFactor = 1.1;
 		const delta = event.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
 
-		// Get bounding rect to find relative mouse position
-		const rect = svgEl.getBoundingClientRect();
-		const mouseX = event.clientX - rect.left;
-		const mouseY = event.clientY - rect.top;
+		const newScale = scale * delta;
 
-		// Adjust translate so zoom centers around cursor
-		translate.x -= (mouseX - translate.x) * (delta - 1);
-		translate.y -= (mouseY - translate.y) * (delta - 1);
-
-		scale *= delta;
-		updateTransform();
-		updateLabelVisibility();
+		if (newScale >= 0.7 && newScale <= 3.5) {
+			scale = newScale;
+			updateTransform();
+			updateLabelVisibility();
+		}
 	}
 
 	function handlePointerClick(target: SVGElement) {
@@ -142,6 +130,12 @@
 		if (label) {
 			label.remove();
 			colorIdToLabelMap.delete(target.dataset.colorId);
+		}
+
+		const maskRegion = document.querySelector(`.mask-region-${target.dataset.colorId}`);
+
+		if (maskRegion) {
+			maskRegion.classList.add('colored');
 		}
 
 		onCorrectColorClick();
@@ -182,6 +176,11 @@
 				if (label) {
 					label.remove();
 					colorIdToLabelMap.delete(colorId);
+				}
+
+				const maskRegion = document.querySelector(`.mask-region-${colorId}`);
+				if (maskRegion) {
+					maskRegion.classList.add('colored');
 				}
 			}
 		});
@@ -263,6 +262,14 @@
 </div>
 
 <style>
+	:global(.mask-region) {
+		opacity: 0;
+	}
+
+	:global(.mask-region.colored) {
+		opacity: 1;
+	}
+
 	@keyframes fillPulse {
 		0% {
 			fill: gray;
@@ -281,11 +288,13 @@
 		position: relative;
 		display: flex;
 		flex-direction: column;
+		background-color: whitesmoke;
 	}
 
 	.svg-container {
 		background-color: whitesmoke;
 		width: 100%;
+		height: 100%;
 		display: block;
 		cursor: grab;
 		flex: 1;

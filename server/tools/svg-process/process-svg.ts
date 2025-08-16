@@ -12,11 +12,12 @@ import {
   generateMask,
   extractOutlinesSVG,
   loadLabelMap,
+  extractOutlinesSVGEnhanced
 } from "./utils";
 
 const MIN_REGION_PIXELS = 100;
 
-const inputPath = path.resolve("tools/original/3.jpg");
+const inputPath = path.resolve("tools/original/2.jpg");
 const maskOutputDir = path.resolve("output/processed/region-masks");
 const regionColorPath = path.resolve("output/processed/region-colors.json");
 
@@ -75,7 +76,7 @@ async function main() {
   console.log(`Saved ${Object.keys(keptRegionColors).length} region colors.`);
 
   const outlinesSVGPath = path.resolve("output/processed/outlines.svg");
-  await extractOutlinesSVG(inputPath, outlinesSVGPath);
+  await extractOutlinesSVGEnhanced(inputPath, outlinesSVGPath);
 }
 
 main().catch(console.error);

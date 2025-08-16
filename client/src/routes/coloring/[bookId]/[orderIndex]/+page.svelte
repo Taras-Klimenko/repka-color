@@ -197,10 +197,12 @@
 							{removingColorId}
 						/>
 					</div>
-					<DescriptionBar
-						text={pageAssets.page.description || ''}
-						audioSrc={pageAssets.assets.audio}
-					/>
+					{#if pageAssets.page.description}
+						<DescriptionBar
+							text={pageAssets.page.description || ''}
+							audioSrc={pageAssets.assets.audio}
+						/>
+					{/if}
 				</div>
 			</main>
 		{/key}
@@ -213,6 +215,7 @@
 		flex-direction: column;
 		height: 100vh;
 		width: 100vw;
+		overflow: hidden;
 	}
 
 	.main-area__layout {
@@ -220,11 +223,13 @@
 		display: flex;
 		flex-direction: row;
 		min-height: 0;
+		overflow: hidden;
 	}
 
 	.canvas {
 		flex: 1;
 		min-height: 0;
+		overflow: hidden;
 	}
 
 	.floating-palette {

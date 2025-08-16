@@ -2,7 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 import { parse } from "svgson";
 import { create } from "xmlbuilder2";
-import type { Color } from "../../../client/src/lib/types";
+
+type Color = { id: number; hex: string };
 
 const svgsDir = path.resolve("output/processed/svgs");
 const regionColorsPath = path.resolve("output/processed/region-colors.json");
@@ -13,8 +14,10 @@ const outputPath = path.resolve("output/regions.svg");
 const LABEL_CONFIG = {
   minFontSize: 6,
   maxFontSize: 14,
-  minRegionSize: 500,
-  maxRegionSize: 50000,
+  minRegionSize: 100,
+  maxRegionSize: 10000,
+  minStrokeWidth: 0.2,
+  maxStrokeWidth: 1,
 };
 
 function calculateFontSize(regionSize: number): number {
@@ -34,6 +37,24 @@ function calculateFontSize(regionSize: number): number {
   return Math.round(fontSize);
 }
 
+function calculateStrokeWidth(regionSize: number): number {
+  const normalizedSize = Math.max(
+    0,
+    Math.min(
+      1,
+      (regionSize - LABEL_CONFIG.minRegionSize) /
+        (LABEL_CONFIG.maxRegionSize - LABEL_CONFIG.minRegionSize)
+    )
+  );
+
+  const strokeWidth =
+    LABEL_CONFIG.minStrokeWidth +
+    (LABEL_CONFIG.maxStrokeWidth - LABEL_CONFIG.minStrokeWidth) *
+      normalizedSize;
+
+  return Math.round(strokeWidth * 10) / 10; // Round to 1 decimal place
+}
+
 function getLabelSizeClass(regionSize: number): string {
   if (regionSize < 500) {
     return "region-label-xsmall";
@@ -41,10 +62,10 @@ function getLabelSizeClass(regionSize: number): string {
   if (regionSize < 1000) {
     return "region-label-small";
   }
-  if (regionSize < 3000) {
+  if (regionSize < 4000) {
     return "region-label-medium";
   }
-  if (regionSize < 10000) {
+  if (regionSize < 8000) {
     return "region-label-large";
   }
   return "region-label-xlarge";
@@ -61,6 +82,12 @@ async function composeFinalSVG() {
 
   const allPaths: any[] = [];
   const colorIdMap: Color[] = [];
+  const maskRegions: any[] = [];
+
+  const visualData = JSON.parse(await fs.readFile(visualCentersPath, "utf-8"));
+
+  let visualCenters: Record<string, [number, number]> = visualData.centers;
+  let regionSizes: Record<string, number> = visualData.sizes;
 
   for (const [index, file] of files.entries()) {
     if (!file.endsWith(".svg")) continue;
@@ -85,6 +112,8 @@ async function composeFinalSVG() {
 
     const hexColor = rgbToHex(color.r, color.g, color.b);
 
+    const strokeWidth = calculateStrokeWidth(regionSizes[regionId]);
+
     allPaths.push({
       name: "path",
       attributes: {
@@ -94,14 +123,21 @@ async function composeFinalSVG() {
         "data-region": regionId,
         "data-color-id": colorId,
         stroke: "grey",
-        "stroke-width": "0.3",
+        "stroke-width": strokeWidth.toString(),
         class: "color-region",
       },
     });
+
+    maskRegions.push({
+      regionId,
+      pathData: pathElement.attributes.d,
+      fillRule,
+    });
+
     colorIdMap.push({ id: colorId, hex: hexColor });
   }
 
-  const outlinesContent = await fs.readFile(outlinesPath, "utf-8");
+  // const outlinesContent = await fs.readFile(outlinesPath, "utf-8");
   // const parsedOutline = await parse(outlinesContent);
 
   // for (const child of parsedOutline.children) {
@@ -119,16 +155,47 @@ async function composeFinalSVG() {
   // 	});
   // }
 
-  const visualData = JSON.parse(await fs.readFile(visualCentersPath, "utf-8"));
-
-  let visualCenters: Record<string, [number, number]> = visualData.centers;
-  let regionSizes: Record<string, number> = visualData.sizes;
-
   // Build the final SVG
   const root = create({ version: "1.0" }).ele("svg", {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 1024 1024",
   });
+
+  const defs = root.ele("defs");
+  const mask = defs.ele("mask", { id: "outline-mask" });
+
+  mask.ele("rect", {
+    width: 1024,
+    height: 1024,
+    fill: "white",
+  });
+
+  for (const maskRegion of maskRegions) {
+    mask.ele("path", {
+      d: maskRegion.pathData,
+      fill: "black",
+      "fill-rule": maskRegion.fillRule,
+      class: `mask-region mask-region-${maskRegion.regionId}`,
+      "data-region": maskRegion.regionId,
+    });
+  }
+
+  const outlinesContent = await fs.readFile(outlinesPath, "utf-8");
+  const parsedOutlines = await parse(outlinesContent);
+
+  for (const child of parsedOutlines.children) {
+    if (child.name !== "path") continue;
+    allPaths.push({
+      name: "path",
+      attributes: {
+        ...child.attributes,
+        fill: "black",
+        class: "outlines-layer",
+        mask: "url(#outline-mask)",
+        "pointer-events": "none",
+      },
+    });
+  }
 
   const viewportGroup = root.ele("g", { id: "viewport" });
 
@@ -139,7 +206,7 @@ async function composeFinalSVG() {
   for (const [regionId, [x, y]] of Object.entries(visualCenters)) {
     const colorId = colorIdMap.find((c) => c.id === parseInt(regionId))?.id;
     const fontSize = calculateFontSize(regionSizes[regionId]);
-    const labelSizeClass = getLabelSizeClass(regionSizes[regionId])
+    const labelSizeClass = getLabelSizeClass(regionSizes[regionId]);
     if (!colorId) continue;
 
     viewportGroup

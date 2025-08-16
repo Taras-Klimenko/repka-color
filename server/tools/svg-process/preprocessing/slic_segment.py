@@ -1,11 +1,12 @@
 import sys, os
 import numpy as np
-from skimage import io, segmentation, color, graph, filters
+from skimage import io, segmentation, color, graph, filters, transform
 from skimage.color import rgb2lab
 from skimage.segmentation import find_boundaries, relabel_sequential
 from collections import defaultdict
 from scipy.ndimage import distance_transform_edt, center_of_mass
 import json
+import imageio
 
 # --- Enhanced Segmentation Settings ---
 # Adaptive segmentation based on image size
@@ -21,10 +22,41 @@ def calculate_segments(image_shape):
 # Default settings (used when adaptive calculation isn't desired)
 DEFAULT_SEGMENTS = 12000
 COMPACTNESS = 1           # Higher = more regular shapes, less edge-following
-MERGE_THRESHOLD = 15      # Higher = more aggressive merging
-MIN_REGION_SIZE = 400     # Remove regions smaller than this
+MERGE_THRESHOLD = 20      # Higher = more aggressive merging
+MIN_REGION_SIZE = 500     # Remove regions smaller than this
 RELABEL_REGIONS = True    # Whether to relabel regions sequentially
 OUTPUT_DIR = "output"     # Output folder
+THUMBNAIL_SIZE = 320      # Thumbnail size
+
+def generate_thumbnail(image: np.ndarray, output_path: str, size: int = THUMBNAIL_SIZE):
+    """Generate a thumbnail image with specified size"""
+    print(f"Generating {size}x{size} thumbnail...")
+    
+    # Ensure image is in the correct format (uint8, 0-255 range)
+    if image.dtype != np.uint8:
+        if image.max() <= 1.0:
+            # Image is in 0-1 range, scale to 0-255
+            image = (image * 255).astype(np.uint8)
+        else:
+            # Image is in 0-255 range but wrong dtype
+            image = image.astype(np.uint8)
+    
+    # Resize image to thumbnail size while maintaining aspect ratio
+    # Use anti_aliasing=True for better quality
+    thumbnail = transform.resize(
+        image, 
+        (size, size), 
+        anti_aliasing=True,
+        preserve_range=True
+    )
+    
+    # Ensure thumbnail is in uint8 format
+    if thumbnail.dtype != np.uint8:
+        thumbnail = np.clip(thumbnail, 0, 255).astype(np.uint8)
+    
+    # Save as JPG using imageio
+    imageio.imwrite(output_path, thumbnail, quality=85)
+    print(f"Thumbnail saved to: {output_path}")
 
 # Enhanced SLIC segmentation with edge-aware processing
 def slic_segment_enhanced(image: np.ndarray, segments=None, compactness=COMPACTNESS) -> np.ndarray:
@@ -57,16 +89,36 @@ def merge_func(g, src, dst):
 
 # Enhanced weight function considering color similarity more intelligently
 def weight_func_enhanced(g, src, dst, n):
-    """Enhanced weight function for better region merging decisions"""
+    """Enhanced weight function that prevents large regions from swallowing smaller ones"""
     color_diff = g.nodes[dst]['mean color'] - g.nodes[n]['mean color']
     color_weight = np.linalg.norm(color_diff)
     
-    # Add slight penalty for very different regions to preserve important boundaries
-    # This helps maintain distinct features in coloring books
-    if color_weight > 40:  # High color difference threshold
-        color_weight *= 1.2  # Increase weight to make merging less likely
+    # Get region sizes
+    dst_size = g.nodes[dst]['pixel count']
+    n_size = g.nodes[n]['pixel count']
     
-    return {'weight': color_weight}
+    # Calculate size penalty - larger regions get penalized more
+    # This prevents "swallowing" of smaller regions by large ones
+    size_ratio = dst_size / max(n_size, 1)  # Avoid division by zero
+    size_penalty = 0
+    
+    if size_ratio > 15:  # If destination is 5x larger than source
+        size_penalty = 20 * (size_ratio - 5)  # Progressive penalty
+    elif size_ratio > 30:  # If destination is 10x larger
+        size_penalty = 50 * (size_ratio - 10)  # Even stronger penalty
+    
+    # Also penalize if the resulting region would be too large
+    combined_size = dst_size + n_size
+    if combined_size > 10000:  # Adjust this threshold based on your needs
+        size_penalty += 30
+    
+    total_weight = color_weight + size_penalty
+    
+    # Add slight penalty for very different regions to preserve important boundaries
+    if color_weight > 50:
+        total_weight *= 1.2
+    
+    return {'weight': total_weight}
 
 
 # Enhanced small region merging with color similarity consideration
@@ -206,6 +258,10 @@ def segment_image_enhanced(
     # Load and preprocess image
     image = io.imread(input_path)
     print(f"Image loaded: {image.shape}")
+
+    # Generate thumbnail first
+    thumbnail_path = os.path.join(output_dir, "thumbnail.jpg")
+    generate_thumbnail(image, thumbnail_path, THUMBNAIL_SIZE)
     
     # Enhanced SLIC segmentation
 

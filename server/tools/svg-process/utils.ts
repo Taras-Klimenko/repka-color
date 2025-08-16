@@ -1,340 +1,427 @@
-import sharp from 'sharp';
-import { trace } from 'potrace';
-import fs from 'fs/promises';
-import path from 'path';
-import npyjs from 'npyjs';
+import sharp from "sharp";
+import { trace } from "potrace";
+import fs from "fs/promises";
+import path from "path";
+import npyjs from "npyjs";
 
 export async function loadLabelMap(npyPath: string): Promise<number[][]> {
-	const npy = new npyjs();
+  const npy = new npyjs();
 
-	// Read the .npy file as a buffer
-	const buffer = await fs.readFile(npyPath);
+  // Read the .npy file as a buffer
+  const buffer = await fs.readFile(npyPath);
 
-	// Convert Node.js Buffer to ArrayBuffer
-	const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  // Convert Node.js Buffer to ArrayBuffer
+  const arrayBuffer = buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  );
 
-	// Parse with npyjs
-	const data = npy.parse(arrayBuffer);
+  // Parse with npyjs
+  const data = npy.parse(arrayBuffer);
 
-	const isTypedArray =
-		data.data instanceof Int32Array ||
-		data.data instanceof Uint32Array ||
-		data.data instanceof Uint16Array ||
-		data.data instanceof Uint8Array;
+  const isTypedArray =
+    data.data instanceof Int32Array ||
+    data.data instanceof Uint32Array ||
+    data.data instanceof Uint16Array ||
+    data.data instanceof Uint8Array;
 
-	const isBigIntArray = data.data instanceof BigInt64Array;
+  const isBigIntArray = data.data instanceof BigInt64Array;
 
-	if (!isTypedArray && !isBigIntArray) {
-		throw new Error(`Unsupported array type: ${data.data.constructor.name}`);
-	}
+  if (!isTypedArray && !isBigIntArray) {
+    throw new Error(`Unsupported array type: ${data.data.constructor.name}`);
+  }
 
-	const { shape } = data;
-	const [height, width] = shape;
-	const labelMap: number[][] = [];
+  const { shape } = data;
+  const [height, width] = shape;
+  const labelMap: number[][] = [];
 
-	for (let y = 0; y < height; y++) {
-		const row: number[] = [];
-		for (let x = 0; x < width; x++) {
-			const index = y * width + x;
-			const value = data.data[index];
-			row.push(isBigIntArray ? Number(value) : value);
-		}
-		labelMap.push(row);
-	}
+  for (let y = 0; y < height; y++) {
+    const row: number[] = [];
+    for (let x = 0; x < width; x++) {
+      const index = y * width + x;
+      const value = data.data[index];
+      row.push(isBigIntArray ? Number(value) : (value as number));
+    }
+    labelMap.push(row);
+  }
 
-	return labelMap;
+  return labelMap;
 }
 
-export async function extractOutlinesSVG(inputPath: string, outputPath: string): Promise<void> {
-	const outlinesBuffer = await sharp(inputPath)
-		.grayscale()
-		.threshold(40) // keep only black lines (adjust as needed)
-		.toBuffer();
+export async function extractOutlinesSVG(
+  inputPath: string,
+  outputPath: string
+): Promise<void> {
+  const outlinesBuffer = await sharp(inputPath)
+    .grayscale()
+    .threshold(40) // keep only black lines (adjust as needed)
+    .toBuffer();
 
-	await new Promise<void>((resolve, reject) => {
-		trace(
-			outlinesBuffer,
-			{
-				threshold: 40,
-				color: 'black',
-				optTolerance: 0.4,
-				turdSize: 50
-			},
-			async (err, svg) => {
-				if (err) return reject(err);
-				await fs.writeFile(outputPath, svg);
-				console.log('✅ Outlines SVG saved to', outputPath);
-				resolve();
-			}
-		);
-	});
+  await new Promise<void>((resolve, reject) => {
+    trace(
+      outlinesBuffer,
+      {
+        threshold: 40,
+        color: "black",
+        optTolerance: 0.4,
+        turdSize: 50,
+      },
+      async (err, svg) => {
+        if (err) return reject(err);
+        await fs.writeFile(outputPath, svg);
+        console.log("✅ Outlines SVG saved to", outputPath);
+        resolve();
+      }
+    );
+  });
+}
+
+export async function extractOutlinesSVGEnhanced(
+  inputPath: string,
+  outputPath: string,
+  options: {
+    grayRange?: number; // 0-100, where 25% = keep more dark grays
+    adjustBlur?: number; // 0-100, where 75% = more blur
+  } = {}
+): Promise<void> {
+  const {
+    grayRange = 60, // 25% on the gray-range slider
+    adjustBlur = 60, // 75% on the adjust-blur slider
+  } = options;
+
+  // Convert slider values to actual parameters
+  const threshold = Math.round((grayRange / 100) * 255); // 25% → ~64 threshold
+  const blurRadius = (adjustBlur / 100) * 2; // 75% → ~1.5 blur radius
+
+  // Enhanced preprocessing based on Rapid Resizer's approach
+  const outlinesBuffer = await sharp(inputPath)
+    .grayscale()
+    .blur(blurRadius) // Adjust blur (75% on adjust-blur slider)
+    .linear(1.3, -30) // Moderate contrast boost to make edges more visible
+    .convolve({
+      width: 3,
+      height: 3,
+      kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1], // Standard Laplacian for edge detection
+    })
+    .linear(1.5, -50) // Additional contrast boost after edge detection
+    .threshold(threshold) // Gray range threshold (25% on gray-range slider)
+    .negate() // Invert to get white lines on black background
+    .toBuffer();
+
+  await new Promise<void>((resolve, reject) => {
+    trace(
+      outlinesBuffer,
+      {
+        turdSize: 10, // Lower to keep more small details
+        optTolerance: 0.2,
+        alphaMax: 4,
+        optCurve: true,
+      },
+      (err: any, svg: string) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        fs.writeFile(outputPath, svg)
+          .then(() => {
+            console.log(
+              `✅ Rapid Resizer-style outlines saved to ${outputPath} (gray-range: ${grayRange}%, blur: ${adjustBlur}%)`
+            );
+            resolve();
+          })
+          .catch(reject);
+      }
+    );
+  });
 }
 
 export async function saveRegionMasks(labelMap: number[][], outputDir: string) {
-	const height = labelMap.length;
-	const width = labelMap[0].length;
-	const regionIds = Array.from(new Set(labelMap.flat()));
+  const height = labelMap.length;
+  const width = labelMap[0].length;
+  const regionIds = Array.from(new Set(labelMap.flat()));
 
-	await fs.mkdir(outputDir, { recursive: true });
+  await fs.mkdir(outputDir, { recursive: true });
 
-	for (const regionId of regionIds) {
-		const mask = new Uint8Array(width * height);
-		let whitePixelCount = 0;
+  for (const regionId of regionIds) {
+    const mask = new Uint8Array(width * height);
+    let whitePixelCount = 0;
 
-		for (let y = 0; y < height; y++) {
-			for (let x = 0; x < width; x++) {
-				if (labelMap[y][x] === regionId) {
-					mask[y * width + x] = 255;
-					whitePixelCount++;
-				}
-			}
-		}
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (labelMap[y][x] === regionId) {
+          mask[y * width + x] = 255;
+          whitePixelCount++;
+        }
+      }
+    }
 
-		if (whitePixelCount < 100) {
-			console.log(`Skipping region ${regionId} (too small: ${whitePixelCount} pixels)`);
-			continue;
-		}
+    if (whitePixelCount < 100) {
+      console.log(
+        `Skipping region ${regionId} (too small: ${whitePixelCount} pixels)`
+      );
+      continue;
+    }
 
-		const outputPath = path.join(outputDir, `region-${regionId}.png`);
-		await sharp(mask, {
-			raw: { width, height, channels: 1 }
-		})
-			.png()
-			.toFile(outputPath);
-		console.log(`Saved region ${regionId} mask to ${outputPath}`);
-	}
+    const outputPath = path.join(outputDir, `region-${regionId}.png`);
+    await sharp(mask, {
+      raw: { width, height, channels: 1 },
+    })
+      .png()
+      .toFile(outputPath);
+    console.log(`Saved region ${regionId} mask to ${outputPath}`);
+  }
 }
 
-export async function renderRegionsImage(labelMap: number[][], outputPath: string) {
-	const height = labelMap.length;
-	const width = labelMap[0].length;
+export async function renderRegionsImage(
+  labelMap: number[][],
+  outputPath: string
+) {
+  const height = labelMap.length;
+  const width = labelMap[0].length;
 
-	let numRegions = 0;
-	for (const row of labelMap) {
-		for (const val of row) {
-			if (val > numRegions) numRegions = val;
-		}
-	}
+  let numRegions = 0;
+  for (const row of labelMap) {
+    for (const val of row) {
+      if (val > numRegions) numRegions = val;
+    }
+  }
 
-	const colorPalette = Array.from({ length: numRegions + 1 }, (_, i) =>
-		i === 0
-			? [255, 255, 255]
-			: [Math.random() * 255, Math.random() * 255, Math.random() * 255].map(Math.floor)
-	);
+  const colorPalette = Array.from({ length: numRegions + 1 }, (_, i) =>
+    i === 0
+      ? [255, 255, 255]
+      : [Math.random() * 255, Math.random() * 255, Math.random() * 255].map(
+          Math.floor
+        )
+  );
 
-	const buffer = Buffer.alloc(width * height * 3); // RGB
+  const buffer = Buffer.alloc(width * height * 3); // RGB
 
-	for (let y = 0; y < height; y++) {
-		for (let x = 0; x < width; x++) {
-			const regionId = labelMap[y][x];
-			const [r, g, b] = colorPalette[regionId];
-			const idx = (y * width + x) * 3;
-			buffer[idx] = r;
-			buffer[idx + 1] = g;
-			buffer[idx + 2] = b;
-		}
-	}
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const regionId = labelMap[y][x];
+      const [r, g, b] = colorPalette[regionId];
+      const idx = (y * width + x) * 3;
+      buffer[idx] = r;
+      buffer[idx + 1] = g;
+      buffer[idx + 2] = b;
+    }
+  }
 
-	await sharp(buffer, {
-		raw: {
-			width,
-			height,
-			channels: 3
-		}
-	}).toFile(outputPath);
+  await sharp(buffer, {
+    raw: {
+      width,
+      height,
+      channels: 3,
+    },
+  }).toFile(outputPath);
 }
 
 export type LabelMap = number[][];
 
 export function labelRegions(binary: number[][]): number[][] {
-	const height = binary.length;
-	const width = binary[0].length;
-	const labels: number[][] = Array.from({ length: height }, () => Array(width).fill(0));
-	let currentLabel = 1;
+  const height = binary.length;
+  const width = binary[0].length;
+  const labels: number[][] = Array.from({ length: height }, () =>
+    Array(width).fill(0)
+  );
+  let currentLabel = 1;
 
-	const directions = [
-		[0, 1],
-		[1, 0],
-		[0, -1],
-		[-1, 0]
-	];
+  const directions = [
+    [0, 1],
+    [1, 0],
+    [0, -1],
+    [-1, 0],
+  ];
 
-	for (let y = 0; y < height; y++) {
-		for (let x = 0; x < width; x++) {
-			if (binary[y][x] === 1 && labels[y][x] === 0) {
-				// Start new region
-				const queue = [[x, y]];
-				labels[y][x] = currentLabel;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (binary[y][x] === 1 && labels[y][x] === 0) {
+        // Start new region
+        const queue = [[x, y]];
+        labels[y][x] = currentLabel;
 
-				while (queue.length > 0) {
-					const [cx, cy] = queue.shift()!;
-					for (const [dx, dy] of directions) {
-						const nx = cx + dx;
-						const ny = cy + dy;
+        while (queue.length > 0) {
+          const [cx, cy] = queue.shift()!;
+          for (const [dx, dy] of directions) {
+            const nx = cx + dx;
+            const ny = cy + dy;
 
-						if (
-							nx >= 0 &&
-							nx < width &&
-							ny >= 0 &&
-							ny < height &&
-							binary[ny][nx] === 1 &&
-							labels[ny][nx] === 0
-						) {
-							labels[ny][nx] = currentLabel;
-							queue.push([nx, ny]);
-						}
-					}
-				}
+            if (
+              nx >= 0 &&
+              nx < width &&
+              ny >= 0 &&
+              ny < height &&
+              binary[ny][nx] === 1 &&
+              labels[ny][nx] === 0
+            ) {
+              labels[ny][nx] = currentLabel;
+              queue.push([nx, ny]);
+            }
+          }
+        }
 
-				currentLabel++;
-			}
-		}
-	}
+        currentLabel++;
+      }
+    }
+  }
 
-	return labels;
+  return labels;
 }
 
-export function toBinaryMatrix(data: Buffer, width: number, height: number): number[][] {
-	const binary: number[][] = [];
-	for (let y = 0; y < height; y++) {
-		const row: number[] = [];
-		for (let x = 0; x < width; x++) {
-			const value = data[y * width + x];
-			row.push(value === 255 ? 1 : 0); // 255 = white, 0 = black
-		}
-		binary.push(row);
-	}
-	return binary;
+export function toBinaryMatrix(
+  data: Buffer,
+  width: number,
+  height: number
+): number[][] {
+  const binary: number[][] = [];
+  for (let y = 0; y < height; y++) {
+    const row: number[] = [];
+    for (let x = 0; x < width; x++) {
+      const value = data[y * width + x];
+      row.push(value === 255 ? 1 : 0); // 255 = white, 0 = black
+    }
+    binary.push(row);
+  }
+  return binary;
 }
 
 export async function computeRegionColors(
-	imagePath: string,
-	labelMap: number[][]
+  imagePath: string,
+  labelMap: number[][]
 ): Promise<Map<number, { r: number; g: number; b: number }>> {
-	const sharp = (await import('sharp')).default;
-	const { data, info } = await sharp(imagePath).raw().toBuffer({ resolveWithObject: true });
+  const sharp = (await import("sharp")).default;
+  const { data, info } = await sharp(imagePath)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-	const width = info.width;
-	const height = info.height;
+  const width = info.width;
+  const height = info.height;
 
-	const regionSums = new Map<number, { r: number; g: number; b: number; count: number }>();
+  const regionSums = new Map<
+    number,
+    { r: number; g: number; b: number; count: number }
+  >();
 
-	for (let y = 0; y < height; y++) {
-		for (let x = 0; x < width; x++) {
-			const region = labelMap[y][x];
-			if (region === 0) continue; // background or unassigned
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const region = labelMap[y][x];
+      if (region === 0) continue; // background or unassigned
 
-			const idx = (y * width + x) * 3;
-			const r = data[idx];
-			const g = data[idx + 1];
-			const b = data[idx + 2];
+      const idx = (y * width + x) * 3;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
 
-			if (!regionSums.has(region)) {
-				regionSums.set(region, { r: 0, g: 0, b: 0, count: 0 });
-			}
+      if (!regionSums.has(region)) {
+        regionSums.set(region, { r: 0, g: 0, b: 0, count: 0 });
+      }
 
-			const sum = regionSums.get(region)!;
-			sum.r += r;
-			sum.g += g;
-			sum.b += b;
-			sum.count += 1;
-		}
-	}
+      const sum = regionSums.get(region)!;
+      sum.r += r;
+      sum.g += g;
+      sum.b += b;
+      sum.count += 1;
+    }
+  }
 
-	// Average per region
-	const regionColors = new Map<number, { r: number; g: number; b: number }>();
-	for (const [region, { r, g, b, count }] of regionSums.entries()) {
-		regionColors.set(region, {
-			r: Math.round(r / count),
-			g: Math.round(g / count),
-			b: Math.round(b / count)
-		});
-	}
+  // Average per region
+  const regionColors = new Map<number, { r: number; g: number; b: number }>();
+  for (const [region, { r, g, b, count }] of regionSums.entries()) {
+    regionColors.set(region, {
+      r: Math.round(r / count),
+      g: Math.round(g / count),
+      b: Math.round(b / count),
+    });
+  }
 
-	return regionColors;
+  return regionColors;
 }
 
 export function generateMask(labelMap: number[][], regionId: number): Buffer {
-	const height = labelMap.length;
-	const width = labelMap[0].length;
-	const mask = new Uint8Array(width * height);
+  const height = labelMap.length;
+  const width = labelMap[0].length;
+  const mask = new Uint8Array(width * height);
 
-	for (let y = 0; y < height; y++) {
-		for (let x = 0; x < width; x++) {
-			if (labelMap[y][x] === regionId) {
-				mask[y * width + x] = 255;
-			}
-		}
-	}
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (labelMap[y][x] === regionId) {
+        mask[y * width + x] = 255;
+      }
+    }
+  }
 
-	return Buffer.from(mask);
+  return Buffer.from(mask);
 }
 
 export function countWhitePixels(mask: Buffer): number {
-	let count = 0;
-	for (const value of mask) {
-		if (value === 255) count++;
-	}
-	return count;
+  let count = 0;
+  for (const value of mask) {
+    if (value === 255) count++;
+  }
+  return count;
 }
 
 export async function computeRegionColor(
-	imagePath: string,
-	mask: Buffer
+  imagePath: string,
+  mask: Buffer
 ): Promise<{ r: number; g: number; b: number }> {
-	const { data, info } = await sharp(imagePath).raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await sharp(imagePath)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-	const width = info.width;
-	const height = info.height;
+  const width = info.width;
+  const height = info.height;
 
-	let rSum = 0;
-	let gSum = 0;
-	let bSum = 0;
-	let count = 0;
+  let rSum = 0;
+  let gSum = 0;
+  let bSum = 0;
+  let count = 0;
 
-	for (let y = 0; y < height; y++) {
-		for (let x = 0; x < width; x++) {
-			const idx = y * width + x;
-			if (mask[idx] === 255) {
-				const pixelIdx = idx * 3;
-				rSum += data[pixelIdx];
-				gSum += data[pixelIdx + 1];
-				bSum += data[pixelIdx + 2];
-				count++;
-			}
-		}
-	}
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (mask[idx] === 255) {
+        const pixelIdx = idx * 3;
+        rSum += data[pixelIdx];
+        gSum += data[pixelIdx + 1];
+        bSum += data[pixelIdx + 2];
+        count++;
+      }
+    }
+  }
 
-	if (count === 0) return { r: 0, g: 0, b: 0 };
+  if (count === 0) return { r: 0, g: 0, b: 0 };
 
-	return {
-		r: Math.round(rSum / count),
-		g: Math.round(gSum / count),
-		b: Math.round(bSum / count)
-	};
+  return {
+    r: Math.round(rSum / count),
+    g: Math.round(gSum / count),
+    b: Math.round(bSum / count),
+  };
 }
 
-export function computeCentroids(labelMap: number[][]): Record<string, { x: number; y: number }> {
-	const centroids: Record<string, { x: number; y: number }> = {};
-	const sumsX: Record<string, number> = {};
-	const sumsY: Record<string, number> = {};
-	const counts: Record<string, number> = {};
+export function computeCentroids(
+  labelMap: number[][]
+): Record<string, { x: number; y: number }> {
+  const centroids: Record<string, { x: number; y: number }> = {};
+  const sumsX: Record<string, number> = {};
+  const sumsY: Record<string, number> = {};
+  const counts: Record<string, number> = {};
 
-	for (let y = 0; y < labelMap.length; y++) {
-		for (let x = 0; x < labelMap[0].length; x++) {
-			const id = labelMap[y][x].toString();
-			sumsX[id] = (sumsX[id] ?? 0) + x;
-			sumsY[id] = (sumsY[id] ?? 0) + y;
-			counts[id] = (counts[id] ?? 0) + 1;
-		}
-	}
+  for (let y = 0; y < labelMap.length; y++) {
+    for (let x = 0; x < labelMap[0].length; x++) {
+      const id = labelMap[y][x].toString();
+      sumsX[id] = (sumsX[id] ?? 0) + x;
+      sumsY[id] = (sumsY[id] ?? 0) + y;
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+  }
 
-	for (const id in counts) {
-		centroids[id] = {
-			x: sumsX[id] / counts[id],
-			y: sumsY[id] / counts[id]
-		};
-	}
+  for (const id in counts) {
+    centroids[id] = {
+      x: sumsX[id] / counts[id],
+      y: sumsY[id] / counts[id],
+    };
+  }
 
-	return centroids;
+  return centroids;
 }
