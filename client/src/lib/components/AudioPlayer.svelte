@@ -3,7 +3,6 @@
 	import { isVoiceoverPlaying, audioState, audioController } from '$lib/stores/audioState';
 	import '$lib/icons';
 
-
 	// === Player control handlers ===
 
 	function togglePlay() {

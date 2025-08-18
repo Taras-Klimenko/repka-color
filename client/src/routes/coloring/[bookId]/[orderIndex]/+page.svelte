@@ -8,6 +8,7 @@
 	import type { Color } from '$lib/types';
 	import { AssetLoader, type PageAssets } from '$lib/entities/assetLoader';
 	import { userProgressStore } from '$lib/stores/userProgressState';
+	import { user } from '$lib/stores/userState';
 	import '$lib/app.css';
 
 	const { bookId, orderIndex } = page.params;
@@ -135,7 +136,7 @@
 		colors.splice(index, 1);
 
 		// update user progress
-		if (pageAssets?.page.id) {
+		if (pageAssets?.page.id && $user?.id !== -1) {
 			await userProgressStore.updatePageProgress(pageAssets.page.id, progressPercentage, colors);
 		}
 		// Auto-select next color (if any)

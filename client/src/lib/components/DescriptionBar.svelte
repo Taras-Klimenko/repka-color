@@ -115,7 +115,7 @@
 		letter-spacing: 0.02em;
 		font-weight: 500;
 		line-height: 1.6;
-		font-size: clamp(1.1rem, 2.5vh, 1.7rem);
+		font-size: clamp(1.1rem, 2.7vh, 1.7rem);
 	}
 
 	.play-button {
@@ -130,9 +130,32 @@
 	}
 
 	.highlighted {
-		color: #000;
-		background: rgba(255, 235, 59, 0.5);
-		border-radius: 4px;
-		transition: background 0.3s ease;
+		background-color: rgba(34, 197, 94, 0.12);
+		color: #1e293b;
+		font-weight: 600;
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		position: relative;
+	}
+
+	.highlighted::after {
+		content: '';
+		position: absolute;
+		bottom: -1px;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: rgba(34, 197, 94, 0.12);
+		animation: fadeIn 0.3s ease-out;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: scaleX(0.8);
+		}
+		to {
+			opacity: 1;
+			transform: scaleX(1);
+		}
 	}
 </style>

@@ -85,8 +85,8 @@ export async function extractOutlinesSVGEnhanced(
   } = {}
 ): Promise<void> {
   const {
-    grayRange = 60, // 25% on the gray-range slider
-    adjustBlur = 60, // 75% on the adjust-blur slider
+    grayRange = 60, // 60% on the gray-range slider
+    adjustBlur = 50, // 50% on the adjust-blur slider
   } = options;
 
   // Convert slider values to actual parameters

@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import AudioPlayer from './AudioPlayer.svelte';
 	import { isTouchDevice } from '$lib/utils/isTouchDevice';
-	import { user, authStore } from '$lib/stores/userState';
+	import { user, authStore, isAuthenticated } from '$lib/stores/userState';
 	import { goto } from '$app/navigation';
 	import { userProgressStore } from '$lib/stores/userProgressState';
 
@@ -41,6 +41,11 @@
 		hideMenu();
 	}
 
+	function handleLogin() {
+		goto('/auth');
+		hideMenu();
+	}
+
 	async function handleRestart() {
 		const currentUser = $user;
 		if (currentUser) {
@@ -66,6 +71,7 @@
 		<div class="bar3" class:active={isMenuOpen}></div>
 	</div>
 	<nav id="nav" class:active={isMenuOpen}>
+		{#if $user?.id === -1}<p class="guest-account-notice">Используется гостевой аккаунт</p>{/if}
 		<ul>
 			<li><a onclick={handleBackToHomePage}>На главную</a></li>
 			{#if bookId && orderIndex}
@@ -74,7 +80,11 @@
 					<a onclick={handleRestart}>Начать заново</a>
 				</li>
 			{/if}
-			<li><a onclick={handleLogout}>Выйти</a></li>
+			{#if $user?.id !== -1}
+				<li><a onclick={handleLogout}>Выйти</a></li>
+			{:else}
+				<li><a onclick={handleLogin}>Войти</a></li>
+			{/if}
 		</ul>
 		{#if isTouchDeviceLayout}
 			<div class="audio-player-container-mobile"><AudioPlayer /></div>
@@ -137,6 +147,10 @@
 		left: 0;
 		width: fit-content;
 		z-index: 100;
+	}
+
+	.guest-account-notice {
+		text-align: center;
 	}
 
 	nav {

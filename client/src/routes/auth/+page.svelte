@@ -60,6 +60,11 @@
 		password = '';
 	};
 
+	function handleGuestLogin() {
+		authStore.loginAsGuest();
+		goto('/');
+	}
+
 	// Form handlers
 
 	const handleSignup = async (event: Event) => {
@@ -131,24 +136,25 @@
 		<div class="user_options-container">
 			<div class="user_options-text">
 				<div class="user_options-unregistered" class:bounceLeft={!signUpForm}>
-					<h2 class="user_unregistered-title">Don't have an account?</h2>
+					<h2 class="user_unregistered-title">Ещё нет аккаунта?</h2>
 					<p class="user_unregistered-text">
-						Banjo tote bag bicycle rights, High Life sartorial cray craft beer whatever street art
-						fap.
+						Создайте учетную запись за 1 минуту, чтобы сохранять прогресс и пользоваться всеми
+						возможностями!
 					</p>
-					<button class="user_unregistered-signup" id="signup-button" onclick={formToggle}
-						>Sign up</button
-					>
+					<div class="user_unregistered-buttons">
+						<button class="user_unregistered-signup" id="signup-button" onclick={formToggle}
+							>Создать</button
+						>
+						<button class="user_unregistered-signup" id="signup-button" onclick={handleGuestLogin}
+							>Гость</button
+						>
+					</div>
 				</div>
 
 				<div class="user_options-registered" class:bounceLeft={signUpForm}>
-					<h2 class="user_registered-title">Have an account?</h2>
-					<p class="user_registered-text">
-						Banjo tote bag bicycle rights, High Life sartorial cray craft beer whatever street art
-						fap.
-					</p>
-					<button class="user_registered-login" id="login-button" onclick={formToggle}>Login</button
-					>
+					<h2 class="user_registered-title">Уже есть аккаунт?</h2>
+					<p class="user_registered-text">Заходите скорее, мы соскучились!</p>
+					<button class="user_registered-login" id="login-button" onclick={formToggle}>Вход</button>
 				</div>
 			</div>
 
@@ -159,13 +165,13 @@
 				class:bounceRight={signUpForm}
 			>
 				<div class="user_forms-login">
-					<h2 class="forms_title">Login</h2>
+					<h2 class="forms_title">Вход</h2>
 					<form class="forms_form" onsubmit={handleLogin}>
 						<fieldset class="forms_fieldset">
 							<div class="forms_field">
 								<input
 									type="email"
-									placeholder="Email"
+									placeholder="Почта"
 									class="forms_field-input"
 									required
 									bind:value={email}
@@ -174,7 +180,7 @@
 							<div class="forms_field">
 								<input
 									type={showPassword ? 'text' : 'password'}
-									placeholder="Password"
+									placeholder="Пароль"
 									class="forms_field-input"
 									required
 									bind:value={password}
@@ -196,19 +202,19 @@
 							<div class="error-message">{error}</div>
 						{/if}
 						<div class="forms_buttons">
-							<button type="button" class="forms_buttons-forgot">Forgot password?</button>
-							<input type="submit" value="Log In" class="forms_buttons-action" />
+							<button type="button" class="forms_buttons-forgot">Забыли пароль?</button>
+							<input type="submit" value="Войти" class="forms_buttons-action" />
 						</div>
 					</form>
 				</div>
 				<div class="user_forms-signup">
-					<h2 class="forms_title">Sign Up</h2>
+					<h2 class="forms_title">Регистрация</h2>
 					<form class="forms_form" onsubmit={handleSignup}>
 						<fieldset class="forms_fieldset">
 							<div class="forms_field">
 								<input
 									type="text"
-									placeholder="Full Name"
+									placeholder="Имя пользователя"
 									class="forms_field-input"
 									required
 									bind:value={username}
@@ -217,7 +223,7 @@
 							<div class="forms_field">
 								<input
 									type="email"
-									placeholder="Email"
+									placeholder="Почта"
 									class="forms_field-input"
 									required
 									bind:value={email}
@@ -226,7 +232,7 @@
 							<div class="forms_field">
 								<input
 									type={showPassword ? 'text' : 'password'}
-									placeholder="Password"
+									placeholder="Пароль"
 									class="forms_field-input"
 									required
 									bind:value={password}
@@ -279,7 +285,7 @@
 							</ul>
 							<input
 								type="submit"
-								value="Sign up"
+								value="Войти"
 								class="forms_buttons-action"
 								disabled={loading || !isFormValid}
 							/>
@@ -558,6 +564,17 @@
 	/**
  * * Registered and Unregistered user box and text
  * */
+
+	.user_unregistered-buttons {
+		display: flex;
+		justify-content: space-between;
+		gap: 20px;
+	}
+
+	#signup-button {
+		flex: 1;
+	}
+
 	.user_options-registered,
 	.user_options-unregistered {
 		width: 50%;

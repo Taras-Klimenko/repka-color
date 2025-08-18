@@ -17,7 +17,7 @@ import {
 
 const MIN_REGION_PIXELS = 100;
 
-const inputPath = path.resolve("tools/original/2.jpg");
+const inputPath = path.resolve("tools/original/5.jpg");
 const maskOutputDir = path.resolve("output/processed/region-masks");
 const regionColorPath = path.resolve("output/processed/region-colors.json");
 

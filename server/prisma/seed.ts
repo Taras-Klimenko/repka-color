@@ -50,7 +50,22 @@ async function seed() {
         description:
           "Ши-тцу - это порода декоративных собак из Китая. Их название переводится как 'маленький лев', а самих собак разводили при императорском дворе.",
         coloringBookId: 2,
-      }
+      },
+      {
+        title: "Махито",
+        orderIndex: 1,
+        coloringBookId: 3,
+      },
+      {
+        title: "Саске вирнись в Каноху",
+        orderIndex: 2,
+        coloringBookId: 3,
+      },
+      {
+        title: "Каз",
+        orderIndex: 3,
+        coloringBookId: 3,
+      },
     ],
   });
 }

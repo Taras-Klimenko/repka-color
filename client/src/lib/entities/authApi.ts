@@ -4,6 +4,7 @@ export type User = {
 	id: number;
 	email: string;
 	username: string;
+	isGuest?: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -32,16 +33,16 @@ export class AuthApi {
 		return data.data;
 	}
 
-	static async register(registerData: RegisterData): Promise<AuthResponse>{
+	static async register(registerData: RegisterData): Promise<AuthResponse> {
 		const { data } = await axiosInstance.post('/auth/register', registerData);
 		const { accessToken } = data.data;
 		localStorage.setItem('accessToken', accessToken);
 		return data.data;
 	}
 
-	static async getCurrentUser(): Promise<{user: User}> {
-		const {data} = await axiosInstance.get('/auth/me');
-		return data.data
+	static async getCurrentUser(): Promise<{ user: User }> {
+		const { data } = await axiosInstance.get('/auth/me');
+		return data.data;
 	}
 
 	static async logout(): Promise<void> {
@@ -49,10 +50,21 @@ export class AuthApi {
 		localStorage.removeItem('accessToken');
 	}
 
-	static async refresh(): Promise<{accessToken: string}> {
+	static async refresh(): Promise<{ accessToken: string }> {
 		const { data } = await axiosInstance.post('auth/refresh');
 		const { accessToken } = data.data;
 		localStorage.setItem('accessToken', accessToken);
 		return data.data;
+	}
+
+	static createGuestUser(): User {
+		return {
+			id: -1,
+			email: 'guest@example.com',
+			username: 'Гость',
+			isGuest: true,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		};
 	}
 }

@@ -42,6 +42,8 @@ const initialAudioState: AudioState = {
 export const audioState = writable<AudioState>(initialAudioState);
 
 let globalAudioElement: HTMLAudioElement | null = null;
+let fadeInInterval: number | null = null;
+let userInteraction = false;
 
 export const audioController = {
 	init() {
@@ -51,7 +53,7 @@ export const audioController = {
 
 		if (!globalAudioElement) {
 			globalAudioElement = new Audio();
-			globalAudioElement.volume = initialAudioState.volume;
+			globalAudioElement.volume = 0;
 			globalAudioElement.loop = false;
 
 			globalAudioElement.addEventListener('ended', () => {
@@ -65,7 +67,84 @@ export const audioController = {
 			globalAudioElement.addEventListener('pause', () => {
 				audioState.update((state) => ({ ...state, isPlaying: false }));
 			});
+
+			this.setupUserInteractionListener();
 		}
+	},
+
+	setupUserInteractionListener() {
+		if (!browser) {
+			return;
+		}
+
+		const handleUserInteraction = () => {
+			if (!userInteraction) {
+				userInteraction = true;
+				this.loadTrackWithFadeIn(0);
+
+				document.removeEventListener('click', handleUserInteraction);
+				document.removeEventListener('keydown', handleUserInteraction);
+				document.removeEventListener('touchstart', handleUserInteraction);
+			}
+		};
+
+		document.addEventListener('click', handleUserInteraction);
+		document.addEventListener('keydown', handleUserInteraction);
+		document.addEventListener('touchstart', handleUserInteraction);
+	},
+
+	loadTrackWithFadeIn(trackIndex: number) {
+		if (!globalAudioElement || !browser) {
+			return;
+		}
+
+		const state = get(audioState);
+		const track = state.playlist[trackIndex];
+
+		if (fadeInInterval) {
+			clearInterval(fadeInInterval);
+			fadeInInterval = null;
+		}
+
+		globalAudioElement.src = track.src;
+		globalAudioElement.volume = 0;
+
+		globalAudioElement
+			.play()
+			.then(() => {
+				this.startFadeIn(state.volume);
+			})
+			.catch((error) => {
+				console.error('Failed to start audio playback: ', error);
+			});
+
+		audioState.update((state) => ({ ...state, currentTrackIndex: trackIndex }));
+	},
+
+	startFadeIn(targetVolume: number, duration: number = 3000) {
+		if (!globalAudioElement || !browser) {
+			return;
+		}
+
+		const startVolume = 0;
+		const step = targetVolume / (duration / 50);
+		let currentVolume = startVolume;
+		console.log('fade in starting');
+
+		fadeInInterval = window.setInterval(() => {
+			currentVolume = Math.min(currentVolume + step, targetVolume);
+
+			if (globalAudioElement) {
+				globalAudioElement.volume = currentVolume;
+			}
+
+			if (currentVolume >= targetVolume) {
+				if (fadeInInterval) {
+					clearInterval(fadeInInterval);
+					fadeInInterval = null;
+				}
+			}
+		}, 50);
 	},
 
 	loadTrack(trackIndex: number) {

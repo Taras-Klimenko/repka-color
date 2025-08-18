@@ -364,6 +364,11 @@
 		transition: opacity 0.3s ease;
 		pointer-events: none;
 		opacity: 0;
+		fill: #1e293b;
+		stroke: white;
+		stroke-linejoin: round;
+		stroke-linecap: round;
+		paint-order: stroke fill;
 	}
 
 	:global(.svg-container.zoom-xsmall .region-label-xlarge) {
