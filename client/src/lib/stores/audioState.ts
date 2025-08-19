@@ -129,7 +129,6 @@ export const audioController = {
 		const startVolume = 0;
 		const step = targetVolume / (duration / 50);
 		let currentVolume = startVolume;
-		console.log('fade in starting');
 
 		fadeInInterval = window.setInterval(() => {
 			currentVolume = Math.min(currentVolume + step, targetVolume);

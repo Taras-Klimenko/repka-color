@@ -1,27 +1,28 @@
 export function registerServiceWorker() {
 	if ('serviceWorker' in navigator) {
-		
-		// immediate registration
-		navigator.serviceWorker
-			.register('/sw.js')
-			.catch((registrationError) => {
-				console.error('Immediate registration failed: ', registrationError);
-				
-				// Fallback to load event
-				window.addEventListener('load', () => {
-					console.log('Trying registration after load event...');
-					navigator.serviceWorker
-						.register('/sw.js')
-						.then((registration) => {
-							console.log('Brush SW registered after load: ', registration);
-						})
-						.catch((error) => {
-							console.error('Registration after load also failed: ', error);
+		window.addEventListener('load', () => {
+			navigator.serviceWorker
+				.register('/sw.js')
+				.then((registration) => {
+					console.log('Brush SW registered: ', registration);
+
+					// Check for updates
+					registration.addEventListener('updatefound', () => {
+						console.log('New service worker available');
+						const newWorker = registration.installing;
+
+						newWorker?.addEventListener('statechange', () => {
+							if (newWorker.state === 'installed') {
+								console.log('New service worker installed, reloading...');
+								window.location.reload();
+							}
 						});
+					});
+				})
+				.catch((registrationError) => {
+					console.log('Brush SW registration failed: ', registrationError);
 				});
-			});
-	} else {
-		console.log('Service Worker is not supported in this browser');
+		});
 	}
 }
 

@@ -159,7 +159,16 @@
 	<div class="loading-container">
 		<Menu />
 		<main class="loading-content">
-			<p>Loading coloring page...</p>
+			<div class="loader">
+				<div class="loader-palette">
+					<div class="color-dot color-1"></div>
+					<div class="color-dot color-2"></div>
+					<div class="color-dot color-3"></div>
+					<div class="color-dot color-4"></div>
+					<div class="color-dot color-5"></div>
+				</div>
+				<p class="loading-text">Загрузка...</p>
+			</div>
 		</main>
 	</div>
 {:else if error}
@@ -175,7 +184,7 @@
 	<div class="app">
 		<Menu pageId={pageAssets.page.id} />
 		{#key canvasResetKey}
-			<main>
+			<main class="main-page">
 				<div class="main-page__layout">
 					<div class="main-area__layout">
 						<div class="canvas">
@@ -227,6 +236,106 @@
 		overflow: hidden;
 	}
 
+	.main-page {
+		overflow: hidden;
+	}
+
+	.loading-container {
+		width: 100vw;
+		height: 100vh;
+		display: flex;
+		flex-direction: column;
+		background-color: whitesmoke;
+		overflow: hidden;
+	}
+
+	.loading-content {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 0;
+	}
+
+	.loader {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 20px;
+		max-height: 100%;
+	}
+
+	.loader-palette {
+		display: flex;
+		gap: 8px;
+		padding: 16px;
+		background: white;
+		border-radius: 50px;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+	}
+
+	.color-dot {
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		animation: colorPulse 1.5s ease-in-out infinite;
+	}
+
+	.color-dot:nth-child(1) {
+		background-color: #ff6b6b;
+		animation-delay: 0s;
+	}
+
+	.color-dot:nth-child(2) {
+		background-color: #4ecdc4;
+		animation-delay: 0.2s;
+	}
+
+	.color-dot:nth-child(3) {
+		background-color: #45b7d1;
+		animation-delay: 0.4s;
+	}
+
+	.color-dot:nth-child(4) {
+		background-color: #96ceb4;
+		animation-delay: 0.6s;
+	}
+
+	.color-dot:nth-child(5) {
+		background-color: #feca57;
+		animation-delay: 0.8s;
+	}
+
+	@keyframes colorPulse {
+		0%,
+		100% {
+			transform: scale(1);
+			opacity: 0.7;
+		}
+		50% {
+			transform: scale(1.2);
+			opacity: 1;
+		}
+	}
+
+	.loading-text {
+		font-size: 1.1rem;
+		color: #666;
+		font-weight: 500;
+		margin: 0;
+		animation: textFade 2s ease-in-out infinite;
+	}
+
+	@keyframes textFade {
+		0%,
+		100% {
+			opacity: 0.6;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+
 	.canvas {
 		flex: 1;
 		min-height: 0;
@@ -270,6 +379,22 @@
 	@media (max-height: 600px) and (orientation: landscape) {
 		.floating-palette {
 			top: 8vh;
+		}
+	}
+
+	@media (max-width: 768px) {
+		.loader-palette {
+			padding: 12px;
+			gap: 6px;
+		}
+
+		.color-dot {
+			width: 16px;
+			height: 16px;
+		}
+
+		.loading-text {
+			font-size: 1rem;
 		}
 	}
 </style>

@@ -6,6 +6,7 @@
 	import Menu from '$lib/components/Menu.svelte';
 	import '$lib/app.css';
 	import { user } from '$lib/stores/userState';
+	import { getColoringBookCover } from '$lib/utils/assetUrl';
 
 	let coloringBooks: ColoringBook[] = $state([]);
 	let bookCompletionSummary: BookCompletionSummary[] = $state([]);
@@ -61,7 +62,7 @@
 					<div class="book-cover">
 						<img
 							class="cover-bw"
-							src={`${import.meta.env.VITE_API_BASE_URL}/assets/coloring-books/${book.id}/cover.jpg`}
+							src={getColoringBookCover(book.id)}
 							alt={book.title}
 							loading="lazy"
 						/>

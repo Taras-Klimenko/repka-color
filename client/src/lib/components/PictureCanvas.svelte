@@ -2,6 +2,7 @@
 	import confetti from 'canvas-confetti';
 	import { onMount } from 'svelte';
 	import type { Color } from '$lib/types';
+	import { isTouchDevice } from '$lib/utils/isTouchDevice';
 
 	const {
 		svg,
@@ -18,6 +19,15 @@
 		progressPercentage: number;
 		usedColorsIds?: number[];
 	}>();
+
+	// === performance optimization ===
+
+	let animationFrame: number | null = null;
+	let touchThrottleTimer: number | null = null;
+	let lastTransformUpdate = 0;
+	const TRANSFORM_THROTTLE_MS = 16;
+
+
 
 	// === creating DOM refs ===
 	let allPaths: NodeListOf<SVGPathElement>;
@@ -38,6 +48,99 @@
 	let translate = $state({ x: 0, y: 0 });
 	let isPanning = $state(false);
 	let last = $state({ x: 0, y: 0 });
+
+	// === setting up touch zoom state ===
+
+	let initialDistance = $state(0);
+	let initialScale = $state(1);
+	let isZooming = $state(false);
+	let touchStartTime = $state(0);
+
+	function getDistance(touches: TouchList): number {
+		if (touches.length < 2) {
+			return 0;
+		}
+
+		const dx = touches[0].clientX - touches[1].clientX;
+		const dy = touches[0].clientY - touches[1].clientY;
+
+		return Math.sqrt(dx * dx + dy * dy);
+	}
+
+	function handleTouchStart(event: TouchEvent) {
+		if (isTimelapsing) {
+			return;
+		}
+
+		touchStartTime = Date.now();
+
+		if (event.touches.length === 1) {
+			isPanning = true;
+			last = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+		} else if (event.touches.length === 2) {
+			isZooming = true;
+			isPanning = false;
+			initialDistance = getDistance(event.touches);
+			initialScale = scale;
+		}
+	}
+
+	function handleTouchMove(event: TouchEvent) {
+		if (isTimelapsing) {
+			return;
+		}
+
+		event.preventDefault();
+
+		if (event.touches.length === 1 && isPanning) {
+			if (!animationFrame) {
+				animationFrame = requestAnimationFrame(() => {
+					const dx = event.touches[0].clientX - last.x;
+					const dy = event.touches[0].clientY - last.y;
+
+					last = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+
+					translate.x += dx;
+					translate.y += dy;
+					updateTransform();
+					animationFrame = null;
+				});
+			}
+		} else if (event.touches.length === 2 && isZooming) {
+			const currentDistance = getDistance(event.touches);
+
+			if (initialDistance > 0) {
+				const newScale = (currentDistance / initialDistance) * initialScale;
+				const clampedScale = Math.max(0.7, Math.min(3.5, newScale));
+
+				if (clampedScale !== scale) {
+					scale = clampedScale;
+					updateTransform();
+					updateLabelVisibility();
+				}
+			}
+		}
+	}
+
+	function handleTouchEnd(event: TouchEvent) {
+		if (isTimelapsing) {
+			return;
+		}
+
+		const touchEndTime = Date.now();
+		const touchDuration = touchEndTime - touchStartTime;
+
+		if (event.touches.length === 0 && touchDuration < 300 && !isZooming) {
+			const target = document.elementFromPoint(last.x, last.y) as SVGElement;
+
+			if (target) {
+				handlePointerClick(target);
+			}
+		}
+		isPanning = false;
+		isZooming = false;
+		initialDistance = 0;
+	}
 
 	function updateTransform() {
 		if (svgEl) {
@@ -73,8 +176,6 @@
 		last = { x: event.clientX, y: event.clientY };
 		svgEl.setPointerCapture(event.pointerId);
 	}
-
-	let animationFrame: number | null = null;
 
 	function handlePointerMove(event: PointerEvent) {
 		if (!isPanning || animationFrame) return;
@@ -238,6 +339,9 @@
 		onpointerup={handlePointerUp}
 		onpointerleave={handlePointerUp}
 		onwheel={handleWheel}
+		ontouchstart={handleTouchStart}
+		ontouchmove={handleTouchMove}
+		ontouchend={handleTouchEnd}
 		viewBox="0 0 1024 1024"
 		class="svg-container"
 	>
@@ -302,6 +406,10 @@
 		-webkit-touch-callout: none;
 		-webkit-user-select: none;
 		user-select: none;
+		-webkit-tap-highlight-color: transparent;
+		-khtml-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
 	}
 
 	:global(.color-region) {

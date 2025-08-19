@@ -35,11 +35,11 @@
 	let currentIndex = $state(0);
 	let interval = 5000;
 	let images = [
-		'/assets/slideshow/slide-1.jpg',
-		'/assets/slideshow/slide-2.jpg',
-		'/assets/slideshow/slide-3.jpg',
-		'/assets/slideshow/slide-4.jpg',
-		'/assets/slideshow/slide-5.jpg'
+		'/images/slideshow/slide-1.jpg',
+		'/images/slideshow/slide-2.jpg',
+		'/images/slideshow/slide-3.jpg',
+		'/images/slideshow/slide-4.jpg',
+		'/images/slideshow/slide-5.jpg'
 	];
 
 	const [send, recieve] = crossfade({
@@ -170,6 +170,8 @@
 						<fieldset class="forms_fieldset">
 							<div class="forms_field">
 								<input
+									autocomplete="email"
+									name="email"
 									type="email"
 									placeholder="Почта"
 									class="forms_field-input"
@@ -179,6 +181,8 @@
 							</div>
 							<div class="forms_field">
 								<input
+									autocomplete="current-password"
+									name="password"
 									type={showPassword ? 'text' : 'password'}
 									placeholder="Пароль"
 									class="forms_field-input"
@@ -213,6 +217,8 @@
 						<fieldset class="forms_fieldset">
 							<div class="forms_field">
 								<input
+									autocomplete="username"
+									name="username"
 									type="text"
 									placeholder="Имя пользователя"
 									class="forms_field-input"
@@ -222,6 +228,8 @@
 							</div>
 							<div class="forms_field">
 								<input
+									autocomplete="email"
+									name="email"
 									type="email"
 									placeholder="Почта"
 									class="forms_field-input"
@@ -231,6 +239,8 @@
 							</div>
 							<div class="forms_field">
 								<input
+									autocomplete="current-password"
+									name="password"
 									type={showPassword ? 'text' : 'password'}
 									placeholder="Пароль"
 									class="forms_field-input"
@@ -410,6 +420,8 @@
 		padding-left: 10px;
 		position: relative;
 		transition: color 0.3s ease;
+		display: flex;
+		align-items: center;
 	}
 
 	.password-validation-message.valid {
@@ -423,7 +435,11 @@
 	.password-validation-message::before {
 		content: '✖';
 		position: absolute;
-		left: 0;
+		left: -5px;
+		top: 50%;
+		transform: translateY(-50%);
+		line-height: 1;
+		font-size: 12px;
 		transition: content 0.3s ease;
 	}
 
