@@ -121,37 +121,42 @@
 		selectedColorId = colorId;
 	}
 
-	async function removeColor(colorId: number | null) {
+	function removeColor(colorId: number | null) {
 		if (colorId === null) return;
 
 		const index = colors.findIndex((c) => c.id === colorId);
 		if (index === -1) return;
 
+		// Set animation state
 		removingColorId = colorId;
-		await tick(); // await for DOM update
-		await new Promise((r) => setTimeout(r, 300)); // await for out animation
-
 		isPaletteAnimating = true;
 
-		colors.splice(index, 1);
+		// Single timeout chain for better performance
+		setTimeout(() => {
+			// Update colors array
+			colors.splice(index, 1);
 
-		// update user progress
+			// Auto-select next color
+			if (colors.length > 0) {
+				const nextIndex = index < colors.length ? index : colors.length - 1;
+				selectedColorId = colors[nextIndex].id;
+			} else {
+				selectedColorId = null;
+			}
+
+			// Let Svelte handle the DOM update naturally
+			setTimeout(() => {
+				isPaletteAnimating = false;
+				removingColorId = null;
+			}, 300);
+		}, 300);
+
+		// Save progress in background (don't block UI)
 		if (pageAssets?.page.id && $user?.id !== -1) {
-			await userProgressStore.updatePageProgress(pageAssets.page.id, progressPercentage, colors);
+			userProgressStore
+				.updatePageProgress(pageAssets.page.id, progressPercentage, colors)
+				.catch((error) => console.error('Failed to save progress:', error));
 		}
-		// Auto-select next color (if any)
-		if (colors.length > 0) {
-			const nextIndex = index < colors.length ? index : colors.length - 1;
-			selectedColorId = colors[nextIndex].id;
-		} else {
-			selectedColorId = null;
-		}
-
-		await tick(); // allow palette slide animation to start
-		await new Promise((r) => setTimeout(r, 300)); // wait for it to finish
-
-		isPaletteAnimating = false;
-		removingColorId = null;
 	}
 </script>
 

@@ -17,16 +17,20 @@ export type AudioState = {
 
 const defaultPlaylist: AudioTrack[] = [
 	{
-		name: 'Hope - Heroes of Might and Magic 4 Original Soundtrack',
-		src: '/audio/ambient/Hope.mp3'
+		name: 'Winter Sports - Nonak',
+		src: '/audio/ambient/Winter Sports.mp3'
 	},
 	{
-		name: 'Blade of Steel - Witcher 3 Original Soundtrack',
-		src: '/audio/ambient/Blade of Steel.mp3'
+		name: 'Sati Bowl - Off Beat',
+		src: '/audio/ambient/Sati Bowl.mp3'
 	},
 	{
-		name: 'Yennefer of Vengerberg - Witcher 3 Original Soundtrack',
-		src: '/audio/ambient/Yennefer of Vengerberg.mp3'
+		name: 'Subtle Affair - Kike Gutz',
+		src: '/audio/ambient/Subtle Affair.mp3'
+	},
+	{
+		name: 'Harmony Threshold - MudiG',
+		src: '/audio/ambient/Harmony Threshold.mp3'
 	}
 ];
 

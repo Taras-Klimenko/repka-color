@@ -163,7 +163,7 @@
 		transition: transform 0.4s ease-in-out;
 		width: 33vw;
 		z-index: 2;
-		background: rgba(255, 255, 255, 0.15);
+		background: rgba(255, 255, 255, 0.65);
 		backdrop-filter: blur(10px);
 		display: flex;
 		flex-direction: column;
@@ -207,7 +207,7 @@
 		background: rgba(0, 0, 0, 0.2);
 		z-index: 1;
 		opacity: 0;
-		transition: opacity 0.2s ease;
+		transition: opacity 0.3s ease;
 		pointer-events: none;
 	}
 	.backdrop.visible {

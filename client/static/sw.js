@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v0.0.0.4';
+const CACHE_VERSION = 'v0.0.0.8';
 const CACHE_NAME = `brush-${CACHE_VERSION}`;
 const urlsToCache = ['/', '/favicon.png'];
 

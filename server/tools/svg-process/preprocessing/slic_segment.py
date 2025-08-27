@@ -22,7 +22,7 @@ def calculate_segments(image_shape):
 # Default settings (used when adaptive calculation isn't desired)
 DEFAULT_SEGMENTS = 12000
 COMPACTNESS = 1           # Higher = more regular shapes, less edge-following
-MERGE_THRESHOLD = 20      # Higher = more aggressive merging
+MERGE_THRESHOLD = 25      # Higher = more aggressive merging
 MIN_REGION_SIZE = 500     # Remove regions smaller than this
 RELABEL_REGIONS = True    # Whether to relabel regions sequentially
 OUTPUT_DIR = "output"     # Output folder

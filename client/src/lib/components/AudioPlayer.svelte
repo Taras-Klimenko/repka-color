@@ -51,7 +51,9 @@
 					class="track-title"
 					class:scroll={$audioState.playlist[$audioState.currentTrackIndex]?.name?.length > 20}
 				>
-					{$audioState.playlist[$audioState.currentTrackIndex]?.name}
+					{$audioState.playlist[$audioState.currentTrackIndex]?.name.length > 20
+						? ($audioState.playlist[$audioState.currentTrackIndex]?.name + '  '.repeat(15)).repeat(2)
+						: $audioState.playlist[$audioState.currentTrackIndex]?.name}
 				</div>
 			</div>
 			<div class="controls">
@@ -179,6 +181,7 @@
 	}
 
 	.track-title {
+		margin-left: 24px;
 		white-space: nowrap;
 		font-weight: bold;
 		font-size: 1rem;
@@ -188,6 +191,7 @@
 
 	.track-title.scroll {
 		animation: scroll-title 12s linear infinite;
+		white-space: pre;
 	}
 
 	@keyframes scroll-title {

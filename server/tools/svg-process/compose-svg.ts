@@ -89,53 +89,53 @@ async function composeFinalSVG() {
   let visualCenters: Record<string, [number, number]> = visualData.centers;
   let regionSizes: Record<string, number> = visualData.sizes;
 
-  for (const [index, file] of files.entries()) {
-    if (!file.endsWith(".svg")) continue;
+  // for (const [index, file] of files.entries()) {
+  //   if (!file.endsWith(".svg")) continue;
 
-    const match = file.match(/region-(\d+)\.svg/);
-    if (!match) continue;
+  //   const match = file.match(/region-(\d+)\.svg/);
+  //   if (!match) continue;
 
-    const regionId = match[1];
-    const colorId = index + 1;
+  //   const regionId = match[1];
+  //   const colorId = index + 1;
 
-    const svgPath = path.join(svgsDir, file);
-    const svgContent = await fs.readFile(svgPath, "utf-8");
+  //   const svgPath = path.join(svgsDir, file);
+  //   const svgContent = await fs.readFile(svgPath, "utf-8");
 
-    const parsed = await parse(svgContent);
-    const pathElement = parsed.children.find((c) => c.name === "path");
+  //   const parsed = await parse(svgContent);
+  //   const pathElement = parsed.children.find((c) => c.name === "path");
 
-    if (!pathElement) continue;
-    const fillRule = pathElement.attributes["fill-rule"] || "evenodd";
+  //   if (!pathElement) continue;
+  //   const fillRule = pathElement.attributes["fill-rule"] || "evenodd";
 
-    const color = regionColors[regionId];
-    if (!color) continue;
+  //   const color = regionColors[regionId];
+  //   if (!color) continue;
 
-    const hexColor = rgbToHex(color.r, color.g, color.b);
+  //   const hexColor = rgbToHex(color.r, color.g, color.b);
 
-    const strokeWidth = calculateStrokeWidth(regionSizes[regionId]);
+  //   const strokeWidth = calculateStrokeWidth(regionSizes[regionId]);
 
-    allPaths.push({
-      name: "path",
-      attributes: {
-        d: pathElement.attributes.d,
-        fill: "whitesmoke",
-        "fill-rule": fillRule,
-        "data-region": regionId,
-        "data-color-id": colorId,
-        stroke: "grey",
-        "stroke-width": strokeWidth.toString(),
-        class: "color-region",
-      },
-    });
+  //   allPaths.push({
+  //     name: "path",
+  //     attributes: {
+  //       d: pathElement.attributes.d,
+  //       fill: "whitesmoke",
+  //       "fill-rule": fillRule,
+  //       "data-region": regionId,
+  //       "data-color-id": colorId,
+  //       stroke: "grey",
+  //       "stroke-width": strokeWidth.toString(),
+  //       class: "color-region",
+  //     },
+  //   });
 
-    maskRegions.push({
-      regionId,
-      pathData: pathElement.attributes.d,
-      fillRule,
-    });
+  //   maskRegions.push({
+  //     regionId,
+  //     pathData: pathElement.attributes.d,
+  //     fillRule,
+  //   });
 
-    colorIdMap.push({ id: colorId, hex: hexColor });
-  }
+  //   colorIdMap.push({ id: colorId, hex: hexColor });
+  // }
 
   // const outlinesContent = await fs.readFile(outlinesPath, "utf-8");
   // const parsedOutline = await parse(outlinesContent);
@@ -167,41 +167,93 @@ async function composeFinalSVG() {
   mask.ele("rect", {
     width: 1024,
     height: 1024,
-    fill: "white",
+    fill: "black",
   });
 
-  for (const maskRegion of maskRegions) {
-    mask.ele("path", {
-      d: maskRegion.pathData,
-      fill: "black",
-      "fill-rule": maskRegion.fillRule,
-      class: `mask-region mask-region-${maskRegion.regionId}`,
-      "data-region": maskRegion.regionId,
+  const viewportGroup = root.ele("g", { id: "viewport" });
+
+  for (const [index, file] of files.entries()) {
+    if (!file.endsWith(".svg")) {
+      continue;
+    }
+    const match = file.match(/region-(\d+)\.svg/);
+    if (!match) {
+      continue;
+    }
+
+    const regionId = match[1];
+    const colorId = index + 1;
+
+    const svgPath = path.join(svgsDir, file);
+    const svgContent = await fs.readFile(svgPath, "utf-8");
+    const parsed = await parse(svgContent);
+    const pathElement = parsed.children.find((c) => c.name === "path");
+
+    if (!pathElement) {
+      continue;
+    }
+
+    const fillRule = pathElement.attributes["fill-rule"] || "evenodd";
+    const color = regionColors[regionId];
+
+    if (!color) {
+      continue;
+    }
+
+    const hexColor = rgbToHex(color.r, color.g, color.b);
+    const strokeWidth = calculateStrokeWidth(regionSizes[regionId]);
+
+    const regionPathId = `region-path-${colorId}`;
+
+    viewportGroup.ele("path", {
+      d: pathElement.attributes.d,
+      fill: "whitesmoke",
+      "fill-rule": fillRule,
+      "data-region": regionId,
+      "data-color-id": colorId,
+      stroke: "grey",
+      "stroke-width": strokeWidth.toString(),
+      class: "color-region",
     });
+
+    mask.ele("path", {
+      d: pathElement.attributes.d,
+      fill: "white",
+      "fill-rule": fillRule,
+      class: `mask-region mask-region-${regionId}`,
+      "data-region": regionId,
+    });
+
+    colorIdMap.push({ id: colorId, hex: hexColor });
   }
+
+  // for (const maskRegion of maskRegions) {
+  //   mask.ele("path", {
+  //     d: maskRegion.pathData,
+  //     fill: "black",
+  //     "fill-rule": maskRegion.fillRule,
+  //     class: `mask-region mask-region-${maskRegion.regionId}`,
+  //     "data-region": maskRegion.regionId,
+  //   });
+  // }
 
   const outlinesContent = await fs.readFile(outlinesPath, "utf-8");
   const parsedOutlines = await parse(outlinesContent);
 
   for (const child of parsedOutlines.children) {
     if (child.name !== "path") continue;
-    allPaths.push({
-      name: "path",
-      attributes: {
-        ...child.attributes,
-        fill: "black",
-        class: "outlines-layer",
-        mask: "url(#outline-mask)",
-        "pointer-events": "none",
-      },
+    viewportGroup.ele("path", {
+      ...child.attributes,
+      fill: "black",
+      class: "outlines-layer",
+      mask: "url(#outline-mask)",
+      "pointer-events": "none",
     });
   }
 
-  const viewportGroup = root.ele("g", { id: "viewport" });
-
-  for (const pathObj of allPaths) {
-    viewportGroup.ele(pathObj.name, pathObj.attributes);
-  }
+  // for (const pathObj of allPaths) {
+  //   viewportGroup.ele(pathObj.name, pathObj.attributes);
+  // }
 
   for (const [regionId, [x, y]] of Object.entries(visualCenters)) {
     const colorId = colorIdMap.find((c) => c.id === parseInt(regionId))?.id;

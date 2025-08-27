@@ -1,8 +1,7 @@
 <script lang="ts">
 	import confetti from 'canvas-confetti';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import type { Color } from '$lib/types';
-	import { isTouchDevice } from '$lib/utils/isTouchDevice';
 
 	const {
 		svg,
@@ -25,17 +24,17 @@
 	let animationFrame: number | null = null;
 	let touchThrottleTimer: number | null = null;
 	let lastTransformUpdate = 0;
-	const TRANSFORM_THROTTLE_MS = 16;
-
-
+	const TRANSFORM_THROTTLE_MS = 24;
 
 	// === creating DOM refs ===
 	let allPaths: NodeListOf<SVGPathElement>;
 	let regionLabels: NodeListOf<SVGTextElement>;
+	let maskRegions: NodeListOf<SVGPathElement>;
 	let svgEl: SVGSVGElement;
 	let viewGroup: SVGGElement;
 	let colorIdToPathMap: Map<string, SVGPathElement>;
 	let colorIdToLabelMap: Map<string, SVGTextElement>;
+	let colorIdToMaskMap: Map<string, SVGPathElement>;
 
 	// Progress tracking
 	let hasFinished = $state(false);
@@ -54,95 +53,41 @@
 	let initialDistance = $state(0);
 	let initialScale = $state(1);
 	let isZooming = $state(false);
-	let touchStartTime = $state(0);
 
-	function getDistance(touches: TouchList): number {
-		if (touches.length < 2) {
+	let activePointers = new Map<number, { x: number; y: number }>();
+	let lastCenter = { x: 0, y: 0 };
+	let downPosition = { x: 0, y: 0 };
+	let downTime = 0;
+
+	function getPointerDistance() {
+		const pointers = Array.from(activePointers.values());
+		if (pointers.length < 2) {
 			return 0;
 		}
-
-		const dx = touches[0].clientX - touches[1].clientX;
-		const dy = touches[0].clientY - touches[1].clientY;
-
-		return Math.sqrt(dx * dx + dy * dy);
+		const dx = pointers[0].x - pointers[1].x;
+		const dy = pointers[0].y - pointers[1].y;
+		return Math.hypot(dx, dy);
 	}
 
-	function handleTouchStart(event: TouchEvent) {
-		if (isTimelapsing) {
-			return;
+	function getPointerCenter() {
+		const pointers = Array.from(activePointers.values());
+
+		if (pointers.length < 2) {
+			return { x: 0, y: 0 };
 		}
 
-		touchStartTime = Date.now();
-
-		if (event.touches.length === 1) {
-			isPanning = true;
-			last = { x: event.touches[0].clientX, y: event.touches[0].clientY };
-		} else if (event.touches.length === 2) {
-			isZooming = true;
-			isPanning = false;
-			initialDistance = getDistance(event.touches);
-			initialScale = scale;
-		}
-	}
-
-	function handleTouchMove(event: TouchEvent) {
-		if (isTimelapsing) {
-			return;
-		}
-
-		event.preventDefault();
-
-		if (event.touches.length === 1 && isPanning) {
-			if (!animationFrame) {
-				animationFrame = requestAnimationFrame(() => {
-					const dx = event.touches[0].clientX - last.x;
-					const dy = event.touches[0].clientY - last.y;
-
-					last = { x: event.touches[0].clientX, y: event.touches[0].clientY };
-
-					translate.x += dx;
-					translate.y += dy;
-					updateTransform();
-					animationFrame = null;
-				});
-			}
-		} else if (event.touches.length === 2 && isZooming) {
-			const currentDistance = getDistance(event.touches);
-
-			if (initialDistance > 0) {
-				const newScale = (currentDistance / initialDistance) * initialScale;
-				const clampedScale = Math.max(0.7, Math.min(3.5, newScale));
-
-				if (clampedScale !== scale) {
-					scale = clampedScale;
-					updateTransform();
-					updateLabelVisibility();
-				}
-			}
-		}
-	}
-
-	function handleTouchEnd(event: TouchEvent) {
-		if (isTimelapsing) {
-			return;
-		}
-
-		const touchEndTime = Date.now();
-		const touchDuration = touchEndTime - touchStartTime;
-
-		if (event.touches.length === 0 && touchDuration < 300 && !isZooming) {
-			const target = document.elementFromPoint(last.x, last.y) as SVGElement;
-
-			if (target) {
-				handlePointerClick(target);
-			}
-		}
-		isPanning = false;
-		isZooming = false;
-		initialDistance = 0;
+		return { x: (pointers[0].x + pointers[1].x) / 2, y: (pointers[0].y + pointers[1].y) / 2 };
 	}
 
 	function updateTransform() {
+		const now = performance.now();
+
+		if (now - lastTransformUpdate < TRANSFORM_THROTTLE_MS) {
+			return;
+		}
+
+		lastTransformUpdate = now;
+
 		if (svgEl) {
 			svgEl.style.transform = `translate(${translate.x}px, ${translate.y}px) scale(${scale})`;
 		}
@@ -154,60 +99,156 @@
 		}
 		svgEl.classList.remove('zoom-xsmall', 'zoom-small', 'zoom-medium', 'zoom-large', 'zoom-xlarge');
 
+		let visibleLabels: string[] = [];
+
 		if (scale >= 3) {
 			svgEl.classList.add('zoom-xlarge');
+			visibleLabels = ['xsmall', 'small', 'medium', 'large', 'xlarge'];
 		} else if (scale >= 2.5) {
 			svgEl.classList.add('zoom-large');
+			visibleLabels = ['small', 'medium', 'large', 'xlarge'];
 		} else if (scale >= 2) {
 			svgEl.classList.add('zoom-medium');
+			visibleLabels = ['medium', 'large', 'xlarge'];
 		} else if (scale >= 1.5) {
 			svgEl.classList.add('zoom-small');
+			visibleLabels = ['large', 'xlarge'];
 		} else {
 			svgEl.classList.add('zoom-xsmall');
+			visibleLabels = ['xlarge'];
 		}
+
+		regionLabels.forEach((label) => {
+			const labelSize = label.classList.contains('region-label-xlarge')
+				? 'xlarge'
+				: label.classList.contains('region-label-large')
+					? 'large'
+					: label.classList.contains('region-label-medium')
+						? 'medium'
+						: label.classList.contains('region-label-small')
+							? 'small'
+							: label.classList.contains('region-label-xsmall')
+								? 'xsmall'
+								: null;
+			label.style.display = labelSize && visibleLabels.includes(labelSize) ? 'block' : 'none';
+		});
 	}
 
-	// === mouse pan events ===
+	// === mouse and touch pan events ===
 	function handlePointerDown(event: PointerEvent) {
 		if (isTimelapsing) {
 			return;
 		}
-		isPanning = true;
-		last = { x: event.clientX, y: event.clientY };
+
+		downPosition = { x: event.clientX, y: event.clientY };
+		downTime = Date.now();
+
+		if (event.pointerType === 'touch') {
+			activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+			if (activePointers.size === 2) {
+				isZooming = true;
+				isPanning = false;
+				initialDistance = getPointerDistance();
+				initialScale = scale;
+				lastCenter = getPointerCenter();
+			} else {
+				isPanning = true;
+				last = { x: event.clientX, y: event.clientY };
+			}
+		} else {
+			isPanning = true;
+			last = { x: event.clientX, y: event.clientY };
+		}
+
 		svgEl.setPointerCapture(event.pointerId);
 	}
 
 	function handlePointerMove(event: PointerEvent) {
-		if (!isPanning || animationFrame) return;
+		if (isTimelapsing) {
+			return;
+		}
 
-		animationFrame = requestAnimationFrame(() => {
+		if (event.pointerType === 'touch') {
+			if (activePointers.has(event.pointerId)) {
+				activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+			}
+			if (isZooming && activePointers.size >= 2) {
+				const center = getPointerCenter();
+
+				const centerDx = center.x - lastCenter.x;
+				const centerDy = center.y - lastCenter.y;
+				if (Math.abs(centerDx) < 0.5 && Math.abs(centerDy) < 0.5) {
+					return;
+				}
+
+				// Panning while pinching
+
+				translate.x += centerDx;
+				translate.y += centerDy;
+				lastCenter = center;
+
+				const newScale = (getPointerDistance() / initialDistance) * initialScale;
+				const clampedScale = Math.max(0.7, Math.min(3.5, newScale));
+				const k = clampedScale / scale; //scale change factor
+
+				translate.x = (1 - k) * center.x + k * translate.x;
+				translate.y = (1 - k) * center.y + k * translate.y;
+
+				scale = clampedScale;
+
+				updateTransform();
+				updateLabelVisibility();
+				return;
+			}
+		}
+		if (isPanning && !animationFrame) {
 			const dx = event.clientX - last.x;
 			const dy = event.clientY - last.y;
-			last = { x: event.clientX, y: event.clientY };
-			translate.x += dx;
-			translate.y += dy;
-			updateTransform();
-			animationFrame = null;
-		});
+			if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+				return;
+			}
+			animationFrame = requestAnimationFrame(() => {
+				last = { x: event.clientX, y: event.clientY };
+
+				translate.x += dx;
+				translate.y += dy;
+				updateTransform();
+				animationFrame = null;
+			});
+		}
 	}
 
 	function handlePointerUp(event: PointerEvent) {
+		if (event.pointerType === 'touch') {
+			activePointers.delete(event.pointerId);
+		}
+
+		if (activePointers.size < 2) {
+			isZooming = false;
+		}
+
+		const duration = Date.now() - downTime;
+		const dx = Math.abs(event.clientX - downPosition.x);
+		const dy = Math.abs(event.clientY - downPosition.y);
+
 		isPanning = false;
 		svgEl.releasePointerCapture(event.pointerId);
 
-		const dx = Math.abs(event.clientX - last.x);
-		const dy = Math.abs(event.clientY - last.y);
-		if (dx < 5 && dy < 5) {
+		if (dx < 5 && dy < 5 && duration < 300 && !isZooming) {
 			const target = document.elementFromPoint(event.clientX, event.clientY) as SVGElement;
-			handlePointerClick(target);
+			const colorRegion = target?.closest('[data-color-id]') as SVGElement;
+			if (colorRegion) {
+				handlePointerClick(colorRegion);
+			}
 		}
+		initialDistance = 0;
 	}
 
 	function handleWheel(event: WheelEvent) {
 		if (isTimelapsing) {
 			return;
 		}
-		event.preventDefault();
 		const zoomFactor = 1.1;
 		const delta = event.deltaY < 0 ? zoomFactor : 1 / zoomFactor;
 
@@ -233,18 +274,25 @@
 			colorIdToLabelMap.delete(target.dataset.colorId);
 		}
 
-		const maskRegion = document.querySelector(`.mask-region-${target.dataset.colorId}`);
-
+		const maskRegion = colorIdToMaskMap.get(target.dataset.colorId);
 		if (maskRegion) {
-			maskRegion.classList.add('colored');
+			maskRegion.remove();
+			colorIdToMaskMap.delete(target.dataset.colorId);
 		}
 
 		onCorrectColorClick();
 	}
 
 	onMount(() => {
+		svgEl.addEventListener('wheel', handleWheel, { passive: true });
+		svgEl.addEventListener('pointerdown', handlePointerDown, { passive: false });
+		svgEl.addEventListener('pointermove', handlePointerMove, { passive: true });
+		svgEl.addEventListener('pointerup', handlePointerUp, { passive: true });
+		svgEl.addEventListener('pointerleave', handlePointerUp, { passive: true });
+
 		allPaths = svgEl.querySelectorAll('path[data-color-id]');
 		regionLabels = svgEl.querySelectorAll('text.region-label');
+		maskRegions = svgEl.querySelectorAll('.mask-region');
 
 		colorIdToPathMap = new Map();
 		allPaths.forEach((el) => {
@@ -259,8 +307,37 @@
 				colorIdToLabelMap.set(el.textContent, el);
 			}
 		});
+
+		colorIdToMaskMap = new Map();
+		maskRegions.forEach((el) => {
+			if (el.dataset.region) {
+				colorIdToMaskMap.set(el.dataset.region, el);
+			}
+		});
+
 		updateLabelVisibility();
 		applyUsedColors();
+	});
+
+	onDestroy(() => {
+		if (animationFrame) {
+			cancelAnimationFrame(animationFrame);
+			animationFrame = null;
+		}
+		if (touchThrottleTimer) {
+			clearTimeout(touchThrottleTimer);
+			touchThrottleTimer = null;
+		}
+		svgEl.removeEventListener('wheel', handleWheel);
+		svgEl.removeEventListener('pointerdown', handlePointerDown);
+		svgEl.removeEventListener('pointermove', handlePointerMove);
+		svgEl.removeEventListener('pointerup', handlePointerUp);
+		svgEl.removeEventListener('pointerleave', handlePointerUp);
+
+		activePointers.clear();
+		colorIdToPathMap.clear();
+		colorIdToLabelMap.clear();
+		colorIdToMaskMap.clear();
 	});
 
 	function applyUsedColors() {
@@ -281,7 +358,7 @@
 
 				const maskRegion = document.querySelector(`.mask-region-${colorId}`);
 				if (maskRegion) {
-					maskRegion.classList.add('colored');
+					maskRegion.remove();
 				}
 			}
 		});
@@ -313,7 +390,7 @@
 			});
 
 			isTimelapsing = true;
-			allPaths.forEach((el) => el.classList.add('timelapse-start'));
+			allPaths.forEach((el) => el.classList.replace('fade-out', 'timelapse-start'));
 
 			scale = 1;
 			translate = { x: 0, y: 0 };
@@ -332,19 +409,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="component-container">
-	<svg
-		bind:this={svgEl}
-		onpointerdown={handlePointerDown}
-		onpointermove={handlePointerMove}
-		onpointerup={handlePointerUp}
-		onpointerleave={handlePointerUp}
-		onwheel={handleWheel}
-		ontouchstart={handleTouchStart}
-		ontouchmove={handleTouchMove}
-		ontouchend={handleTouchEnd}
-		viewBox="0 0 1024 1024"
-		class="svg-container"
-	>
+	<svg bind:this={svgEl} viewBox="0 0 1024 1024" class="svg-container">
 		<g bind:this={viewGroup}>
 			<image
 				href={originalImageUrl}
@@ -366,14 +431,6 @@
 </div>
 
 <style>
-	:global(.mask-region) {
-		opacity: 0;
-	}
-
-	:global(.mask-region.colored) {
-		opacity: 1;
-	}
-
 	@keyframes fillPulse {
 		0% {
 			fill: gray;
@@ -414,6 +471,17 @@
 
 	:global(.color-region) {
 		cursor: pointer;
+		transition: opacity 0.5s ease;
+		vector-effect: non-scaling-stroke;
+		shape-rendering: optimizeSpeed;
+	}
+
+	:global(.mask-region) {
+		vector-effect: non-scaling-stroke;
+		shape-rendering: optimizeSpeed;
+		stroke-opacity: 0;
+		transition: none;
+		pointer-events: none;
 	}
 
 	:global(.color-region.highlight) {
@@ -423,7 +491,6 @@
 	:global(.color-region.fade-out) {
 		opacity: 0;
 		pointer-events: none;
-		transition: opacity 0.5s ease;
 	}
 
 	.svg-container,
@@ -469,55 +536,22 @@
 	}
 
 	:global(.region-label) {
-		transition: opacity 0.3s ease;
 		pointer-events: none;
-		opacity: 0;
 		fill: #1e293b;
 		stroke: white;
 		stroke-linejoin: round;
 		stroke-linecap: round;
 		paint-order: stroke fill;
+		display: none;
+		vector-effect: non-scaling-stroke;
+		shape-rendering: optimizeSpeed;
 	}
 
-	:global(.svg-container.zoom-xsmall .region-label-xlarge) {
+	:global(.timelapse-start) {
 		opacity: 1;
 	}
 
-	/* Small zoom - show large+ labels */
-	:global(.svg-container.zoom-small .region-label-large),
-	:global(.svg-container.zoom-small .region-label-xlarge) {
-		opacity: 1;
-	}
-
-	/* Medium zoom - show medium+ labels */
-	:global(.svg-container.zoom-medium .region-label-medium),
-	:global(.svg-container.zoom-medium .region-label-large),
-	:global(.svg-container.zoom-medium .region-label-xlarge) {
-		opacity: 1;
-	}
-
-	/* Large zoom - show small+ labels */
-	:global(.svg-container.zoom-large .region-label-small),
-	:global(.svg-container.zoom-large .region-label-medium),
-	:global(.svg-container.zoom-large .region-label-large),
-	:global(.svg-container.zoom-large .region-label-xlarge) {
-		opacity: 1;
-	}
-
-	/* Extra large zoom - show all labels */
-	:global(.svg-container.zoom-xlarge .region-label-xsmall),
-	:global(.svg-container.zoom-xlarge .region-label-small),
-	:global(.svg-container.zoom-xlarge .region-label-medium),
-	:global(.svg-container.zoom-xlarge .region-label-large),
-	:global(.svg-container.zoom-xlarge .region-label-xlarge) {
-		opacity: 1;
-	}
-
-	:global(.color-region.timelapse-start) {
-		opacity: 1;
-	}
-
-	:global(.color-region.timelapse-reveal) {
+	:global(.timelapse-reveal) {
 		opacity: 0;
 	}
 </style>

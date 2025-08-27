@@ -11,6 +11,18 @@ body {
 	font-family: system-ui, sans-serif;
 	background-color: #fff;
 	overflow: hidden;
+
+	/* Prevent pull-to-refresh and navigation gestures */
+	overscroll-behavior: none;
+	-webkit-overflow-scrolling: touch;
+	/* Prevent swipe navigation on mobile */
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+body {
+	overscroll-behavior-y: none;
+	-webkit-overflow-scrolling: touch;
 }
 
 button,
