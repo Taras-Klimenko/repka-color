@@ -144,19 +144,19 @@
 				selectedColorId = null;
 			}
 
+			if (pageAssets?.page.id && $user?.id !== -1) {
+			userProgressStore
+				.updatePageProgress(pageAssets.page.id, progressPercentage, colors)
+				.catch((error) => console.error('Failed to save progress:', error));
+		}
+
 			// Let Svelte handle the DOM update naturally
 			setTimeout(() => {
 				isPaletteAnimating = false;
 				removingColorId = null;
 			}, 300);
 		}, 300);
-
-		// Save progress in background (don't block UI)
-		if (pageAssets?.page.id && $user?.id !== -1) {
-			userProgressStore
-				.updatePageProgress(pageAssets.page.id, progressPercentage, colors)
-				.catch((error) => console.error('Failed to save progress:', error));
-		}
+		
 	}
 </script>
 

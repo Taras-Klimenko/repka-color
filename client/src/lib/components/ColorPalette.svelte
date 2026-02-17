@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Color } from '$lib/types';
-	import { scale } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
 	import { onDestroy, onMount } from 'svelte';
 

@@ -23,6 +23,16 @@ export type UserPageProgress = {
 	};
 };
 
+export type UserProgressPage = {
+	id: number;
+	title: string;
+	orderIndex: number;
+	coloringBook: {
+		id: number;
+		title: string;
+	};
+}
+
 export type BookCompletionSummary = {
 	bookId: number;
 	completedPages: number;
@@ -58,7 +68,7 @@ export class UserProgressApi {
 	}
 
 	static async getUserBookCompletionSummary(userId: number): Promise<BookCompletionSummary[]> {
-		const {data} = await axiosInstance.get(`/user-progress/summary/${userId}`);
+		const { data } = await axiosInstance.get(`/user-progress/summary/${userId}`);
 		return data.data;
 	}
 
@@ -72,5 +82,15 @@ export class UserProgressApi {
 			progressData
 		);
 		return data.data;
+	}
+
+	static async getCompletedPages(userId: number): Promise<UserPageProgress[]> {
+		try {
+			const { data } = await axiosInstance.get(`/user-progress/${userId}/completed`);
+			return data.data;
+		} catch (error) {
+			console.error('Error fetching user completed pages: ', error);
+			return [];
+		}
 	}
 }

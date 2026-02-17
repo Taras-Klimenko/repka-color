@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { FontAwesomeIcon } from '@fortawesome/svelte-fontawesome';
+	import '$lib/icons';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { type ColoringBook, ColoringBookApi } from '$lib/entities/coloringBookApi';
@@ -46,6 +48,10 @@
 		goto(`/coloring-book/${bookId}`);
 	}
 
+	function handleCompletedPageNavigate() {
+		goto('/completed');
+	}
+
 	function getBookCompletionPercentage(bookId: number): number {
 		const summary = completionMap.get(bookId);
 		return summary ? summary.completionPercentage : 0;
@@ -55,6 +61,31 @@
 <div class="main-page-container">
 	<Menu />
 	<main class="main-page-content">
+		{#if $user && $user.id > 0}
+			<div class="navigation-buttons">
+				<div class="nav-button" onclick={handleCompletedPageNavigate}>
+					<div class="nav-button-content">
+						<h3 class="nav-button-title">Завершенные</h3>
+						<FontAwesomeIcon
+							icon="circle-check"
+							style="height: 24px; width: 24px; color: #22c55e;"
+						/>
+					</div>
+				</div>
+				<div class="nav-button">
+					<div class="nav-button-content">
+						<h3 class="nav-button-title">В процессе</h3>
+						<FontAwesomeIcon icon="palette" style="height: 24px; width: 24px; color: #4a90e2;" />
+					</div>
+				</div>
+				<div class="nav-button">
+					<div class="nav-button-content">
+						<h3 class="nav-button-title">Избранное</h3>
+						<FontAwesomeIcon icon="heart" style="height: 24px; width: 24px; color: #f44336;" />
+					</div>
+				</div>
+			</div>
+		{/if}
 		<div class="books-grid-container">
 			{#each coloringBooks as book (book.id)}
 				{@const bookProgress = $user ? getBookCompletionPercentage(book.id) : 0}
@@ -110,6 +141,38 @@
 		padding: 80px 20px 40px;
 		max-width: 1200px;
 		margin: 0 auto;
+	}
+
+	.navigation-buttons {
+		display: flex;
+		gap: 20px;
+		margin: 30px 0;
+		flex-wrap: wrap;
+	}
+
+	.nav-button {
+		background: rgba(255, 255, 255, 0.95);
+		border-radius: 15px;
+		overflow: hidden;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+		cursor: pointer;
+		backdrop-filter: blur(10px);
+		flex: 1;
+		min-width: 200px;
+	}
+
+	.nav-button-content {
+		padding: 20px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.nav-button-title {
+		font-size: 1.3rem;
+		font-weight: 600;
+		color: #333;
+		margin: 0;
 	}
 
 	.books-grid-container {
@@ -186,13 +249,21 @@
 	.book-title {
 		font-size: 1.3rem;
 		font-weight: 600;
-		margin-bottom: 8px;
 		color: #333;
 	}
 
 	@media (max-width: 768px) {
 		.main-page-content {
 			padding: 60px 15px 30px;
+		}
+
+		.navigation-buttons {
+			flex-direction: column;
+			gap: 15px;
+		}
+
+		.nav-button {
+			min-width: unset;
 		}
 
 		.books-grid-container {

@@ -9,6 +9,7 @@
 	import type { ColoringBook, ColoringBookPage } from '$lib/entities/coloringBookApi';
 	import Menu from '$lib/components/Menu.svelte';
 	import '$lib/app.css';
+	import PageCard from '$lib/components/PageCard.svelte';
 
 	const bookId = page.params.id;
 
@@ -81,57 +82,16 @@
 		</div>
 
 		<div class="pages-grid">
-			{#each pages as page (page.id)}
+			{#each pages as page, index (page.id)}
 				{@const pageProgress = $user ? getPageProgress(page.id) : 0}
 				{@const thumbnailUrl = getColoringBookPageAssetUrl(book.id, page.orderIndex).thumbnail}
-				{@const originalImageUrl = getColoringBookPageAssetUrl(
-					book.id,
-					page.orderIndex
-				).originalImage}
-
-				<div class="page-card" onclick={() => handlePageClick(page)}>
-					<div class="page-thumbnail">
-						{#if $user && pageProgress === 100}
-						<div class="completion-badge">
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								xmlns="http://www.w3.org/2000/svg"
-							>
-								<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="white" />
-							</svg>
-						</div>
-						{/if}
-						<img
-							class="thumbnail-bw"
-							src={thumbnailUrl}
-							alt={page.title}
-							loading="lazy"
-							onerror={(e) => {
-								// Fallback to original image if thumbnail doesn't exist
-								e.target.src = originalImageUrl;
-							}}
-						/>
-						{#if $user && pageProgress > 0}
-							<div class="thumbnail-colored" style="--progress-width: {pageProgress}%;">
-								<img
-									src={thumbnailUrl}
-									alt={page.title}
-									loading="lazy"
-									onerror={(e) => {
-										e.target.src = originalImageUrl;
-									}}
-								/>
-							</div>
-						{/if}
-						<div class="page-overlay">
-							<span class="page-number">{page.orderIndex}</span>
-						</div>
-					</div>
-					<div class="page-info">
-						<h3 class="page-title">{page.title}</h3>
-					</div>
-				</div>
+				<PageCard
+					{page}
+					index = {index + 1}
+					{pageProgress}
+					{thumbnailUrl}
+					handlePageClick={() => handlePageClick(page)}
+				/>
 			{/each}
 		</div>
 	</main>
@@ -178,110 +138,11 @@
 		margin-right: auto;
 	}
 
-	.page-count {
-		font-size: 1rem;
-		opacity: 0.8;
-		margin: 0;
-	}
-
 	.pages-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 		gap: 30px;
 		padding: 20px 0;
-	}
-
-	.page-card {
-		background: rgba(255, 255, 255, 0.95);
-		border-radius: 15px;
-		overflow: hidden;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-		transition: all 0.3s ease;
-		cursor: pointer;
-		backdrop-filter: blur(10px);
-	}
-
-	.page-thumbnail {
-		position: relative;
-		width: 100%;
-		height: 280px;
-		overflow: hidden;
-	}
-
-	.thumbnail-bw {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		filter: grayscale(100%);
-	}
-
-	.thumbnail-colored {
-		position: absolute;
-		top: 0;
-		left: 0;
-		height: 100%;
-		width: 100%;
-		overflow: hidden;
-		clip-path: inset(0 calc(100% - var(--progress-width, 0%)) 0 0);
-	}
-
-	.thumbnail-colored img {
-		width: 100vw;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.page-thumbnail img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.page-overlay {
-		position: absolute;
-		top: 10px;
-		right: 10px;
-		background: rgba(0, 0, 0, 0.7);
-		color: white;
-		border-radius: 50%;
-		width: 30px;
-		height: 30px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 14px;
-		font-weight: bold;
-	}
-
-	.completion-badge {
-		position: absolute;
-		top: 10px;
-		left: 10px;
-		background: #22c55e;
-		border-radius: 50%;
-		width: 30px;
-		height: 30px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 10;
-		box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
-	}
-
-	.completion-badge svg {
-		width: 24px;
-		height: 24px;
-	}
-
-	.page-info {
-		padding: 20px;
-	}
-
-	.page-title {
-		font-size: 1.2rem;
-		margin: 0 0 8px 0;
-		color: #333;
-		font-weight: 600;
 	}
 
 	@media (max-width: 768px) {

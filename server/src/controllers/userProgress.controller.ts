@@ -190,4 +190,38 @@ export class UserProgressController {
       return;
     }
   }
+
+  static async getCompletedPages(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+
+      const completedPages = await UserProgressService.getCompletedPages(
+        Number(userId)
+      );
+
+      res
+        .status(200)
+        .json(
+          formatResponse(
+            200,
+            "Completed pages fetched successfully",
+            completedPages,
+            null
+          )
+        );
+      return;
+    } catch (error) {
+      res
+        .status(500)
+        .json(
+          formatResponse(
+            500,
+            "Server error while fetching completed pages",
+            null,
+            error
+          )
+        );
+      return;
+    }
+  }
 }

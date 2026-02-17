@@ -10,7 +10,10 @@ import {
 	faBackwardStep,
 	faForwardStep,
 	faEye,
-	faEyeSlash
+	faEyeSlash,
+	faCircleCheck,
+	faPalette,
+	faHeart
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -24,5 +27,8 @@ library.add(
 	faBackwardStep,
 	faForwardStep,
 	faEye,
-	faEyeSlash
+	faEyeSlash,
+	faCircleCheck,
+	faPalette,
+	faHeart
 );

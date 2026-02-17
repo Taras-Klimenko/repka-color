@@ -123,4 +123,24 @@ export class UserProgressService {
       ([bookId, bookData]) => ({ bookId, ...bookData })
     );
   }
+
+  static async getCompletedPages(userId: number) {
+    const completedPages = await prisma.userPageProgress.findMany({
+      where: { userId: userId, progressPercentage: 100 },
+      include: {
+        coloringPage: {
+          include: {
+            coloringBook: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    return completedPages;
+  }
 }

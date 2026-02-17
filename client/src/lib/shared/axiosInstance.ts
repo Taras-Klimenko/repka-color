@@ -29,11 +29,15 @@ axiosInstance.interceptors.response.use(
 	async (error) => {
 		const originalRequest = error.config;
 
-		if (error.response.status === 401 && !originalRequest._retry) {
+		const isAuthEndpoint =
+			originalRequest.url?.includes('/register') || originalRequest.url?.includes('/login');
+		const shouldSkipRefresh = isAuthEndpoint || originalRequest._retry;
+
+		if (error.response?.status === 401 && !shouldSkipRefresh) {
 			originalRequest._retry = true;
 
 			try {
-				const { data } = await axiosInstance.post('/auth/refresh');
+				const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true, headers: { 'Content-Type': 'application/json' } });
 				const { accessToken } = data.data;
 
 				localStorage.setItem('accessToken', accessToken);
@@ -42,7 +46,6 @@ axiosInstance.interceptors.response.use(
 				return axiosInstance(originalRequest);
 			} catch (refreshError) {
 				localStorage.removeItem('accessToken');
-				window.location.href = '/auth';
 				return Promise.reject(refreshError);
 			}
 		}
